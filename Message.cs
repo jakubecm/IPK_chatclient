@@ -2,6 +2,7 @@
 // Includes serialization and deserialization methods for converting messages to and from byte arrays or strings.
 
 using System.Text;
+using Microsoft.VisualBasic;
 
 namespace IPK24ChatClient
 {
@@ -94,7 +95,7 @@ namespace IPK24ChatClient
             {
                 // MSG FROM <display-name> IS <content>
                 case "MSG":
-                    if (parts[1] != "FROM" || parts[3] != "IS")
+                    if (parts[1].ToUpper() != "FROM" || parts[3].ToUpper() != "IS")
                     {
                         return new Message(MessageType.Invalid);
                     }
@@ -104,7 +105,7 @@ namespace IPK24ChatClient
 
                 // ERR FROM <display-name> IS <content>
                 case "ERR":
-                    if(parts[1] != "FROM" || parts[3] != "IS"){
+                    if(parts[1].ToUpper() != "FROM" || parts[3].ToUpper() != "IS"){
                         return new Message(MessageType.Invalid);
                     }
                     var displayNameErr = parts[2];
@@ -114,7 +115,7 @@ namespace IPK24ChatClient
                 // REPLY (OK|NOK) IS <content>
                 case "REPLY":
                     
-                    if (parts[1] != "OK" && parts[1] != "NOK" || parts[2] !="IS")
+                    if ((parts[1].ToUpper() != "OK" && parts[1].ToUpper() != "NOK") || parts[2].ToUpper() != "IS")
                     {
                         return new Message(MessageType.Invalid);
                     }
