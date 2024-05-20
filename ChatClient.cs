@@ -21,8 +21,9 @@ namespace IPK24ChatClient
         private int serverPort;
         private ClientState clientState;
         private MessageType? lastCommandSent;
-        private string? displayName;
+        public string? displayName;
         private CancellationTokenSource cts;
+        private Dictionary<string, ICommandHandler> commandHandlers;
 
 
         public ChatClient(IChatCommunicator chatCommunicator, string serverAddress, int serverPort)
@@ -32,6 +33,14 @@ namespace IPK24ChatClient
             this.serverPort = serverPort;
             clientState = ClientState.Start;
             cts = new CancellationTokenSource();
+
+            commandHandlers = new Dictionary<string, ICommandHandler>
+            {
+                ["/auth"] = new AuthHandler(chatCommunicator, this),
+                ["/join"] = new JoinHandler(chatCommunicator, this),
+                ["/rename"] = new RenameHandler(this),
+                ["/help"] = new HelpHandler()
+            };
         }
 
         public async Task RunAsync()
@@ -90,7 +99,14 @@ namespace IPK24ChatClient
                             break;
                         case MessageType.Err:
                             Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
-                            clientState = ClientState.Error;
+
+                            if (clientState == ClientState.Auth)
+                            {
+                                clientState = ClientState.End;
+                                // send a "BYE" message for a clean disconnect
+                                Message byeMsg = new Message(MessageType.Bye);
+                                await chatCommunicator.SendMessageAsync(byeMsg.SerializeToTcp());
+                            }
                             break;
                         case MessageType.Reply:
                             HandleReplyMessage(message);
@@ -158,7 +174,6 @@ namespace IPK24ChatClient
 
                     if (!userInput.StartsWith("/"))
                     {
-
                         if (clientState != ClientState.Open)
                         {
                             Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
@@ -174,52 +189,13 @@ namespace IPK24ChatClient
                     var inputParts = userInput.Split(' ');
                     var command = inputParts[0].ToLower();
 
-                    switch (command)
+                    if (commandHandlers.TryGetValue(command, out var handler))
                     {
-                        case "/auth":
-                            lastCommandSent = MessageType.Auth;
-
-                            if (inputParts.Length != 4)
-                            {
-                                Console.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
-                                break;
-                            }
-
-                            this.displayName = inputParts[3]; // Update local display name
-                            Message authMessage = new Message(MessageType.Auth, username: inputParts[1], secret: inputParts[2], displayName: inputParts[3]);
-                            await chatCommunicator.SendMessageAsync(authMessage.SerializeToTcp());
-                            break;
-
-                        case "/join":
-                            lastCommandSent = MessageType.Join;
-
-                            if (inputParts.Length != 2)
-                            {
-                                Console.WriteLine("Usage: /join {ChannelID}");
-                                break;
-                            }
-                            Message joinMessage = new Message(MessageType.Join, channelId: inputParts[1], displayName: this.displayName);
-                            await chatCommunicator.SendMessageAsync(joinMessage.SerializeToTcp());
-                            break;
-
-                        case "/rename":
-
-                            if (inputParts.Length != 2)
-                            {
-                                Console.WriteLine("Usage: /rename {DisplayName}");
-                                break;
-                            }
-                            this.displayName = inputParts[1];
-                            Console.WriteLine($"Display name changed to: {this.displayName}");
-                            break;
-
-                        case "/help":
-                            PrintHelpCommands();
-                            break;
-
-                        default:
-                            Console.WriteLine("Unknown command. Type '/help' for available commands.");
-                            break;
+                        await handler.ExecuteCommandAsync(inputParts[1..], cancelToken);
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine($"Unknown command: {command}. Type '/help' for available commands.");
                     }
                 }
                 else
@@ -236,12 +212,9 @@ namespace IPK24ChatClient
             }
         }
 
-        private void PrintHelpCommands()
+        public void setLastCommandSent(MessageType command)
         {
-            Console.WriteLine("/auth {Username} {Secret} {DisplayName} - Authenticate with the server.");
-            Console.WriteLine("/join {ChannelID} - Join a chat channel.");
-            Console.WriteLine("/rename {DisplayName} - Change your display name locally.");
-            Console.WriteLine("/help - Show this help message.");
+            lastCommandSent = command;
         }
 
     }
