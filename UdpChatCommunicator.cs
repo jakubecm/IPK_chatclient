@@ -77,7 +77,7 @@ namespace IPK24ChatClient
             // This block was added because confirm messages IDs were being overwritten
             if (message.MessageId == null)
             {
-                message.MessageId = messageId;
+                message.MessageId = messageId++;
             }
 
             var messageBytes = message.SerializeToUdp();
@@ -93,7 +93,7 @@ namespace IPK24ChatClient
                     {
                         return;
                     }
-                    confirmed = await WaitForConfirmationAsync(messageId, udpTimeout);
+                    confirmed = await WaitForConfirmationAsync((ushort)message.MessageId, udpTimeout);
                     retries++;
                 }
                 else // otherwise send to the connected endpoint
@@ -102,20 +102,18 @@ namespace IPK24ChatClient
 
                     if (message.Type == MessageType.Confirm)
                     {
-                        messageId++;
                         return; // don't wait for confirmation for confirm messages
                     }
-                    confirmed = await WaitForConfirmationAsync(messageId, udpTimeout);
+                    confirmed = await WaitForConfirmationAsync((ushort)message.MessageId, udpTimeout);
                     retries++;
                 }
             }
 
             if (!confirmed)
             {
-                throw new TimeoutException($"Message {messageId} of type {message.Type} was not confirmed by the server.");
+                Console.Error.WriteLine($"ERR: Message {messageId} was not confirmed after {udpRetries} retries.");
+                System.Environment.Exit(1);
             }
-
-            messageId++;
         }
 
         /// <summary>

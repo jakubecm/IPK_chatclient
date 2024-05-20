@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 // -----------------------------------------------------------------------------
 // Project: IPK24ChatClient
@@ -176,7 +177,12 @@ namespace IPK24ChatClient
             writer.Write(messageTypeByte);
 
             // Write message ID
-            writer.Write(MessageId == null ? (short)0 : (short)MessageId);
+            var hostToNetworkOrder = BitConverter.GetBytes(MessageId == null ? (ushort)0 : (ushort)MessageId);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(hostToNetworkOrder);
+            }
+            writer.Write(hostToNetworkOrder);
 
 
             // Write message-specific data
@@ -216,8 +222,10 @@ namespace IPK24ChatClient
             // Read message type
             MessageType type = GetMessageTypeFromByte(reader.ReadByte());
 
-            // Read message ID
-            ushort messageId = (ushort)reader.ReadUInt16();
+            // Read message ID with big endian conversion
+            ushort messageId = reader.ReadUInt16();
+            messageId = (ushort)IPAddress.NetworkToHostOrder((short)messageId);
+            
 
             // Read the rest of the message based on type
             string[] parts;
