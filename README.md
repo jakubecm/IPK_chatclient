@@ -13,7 +13,6 @@ The task was to design and implement a client application, which is able to comm
         - [How sockets work](#how-sockets-work)
         - [Key concepts](#key-concepts)
         - [Practical use](#practical-use)
-
 - [The project goals](#the-project-goals)
 - [Implementation](#implementation)
     - [Layout](#design)
@@ -31,18 +30,17 @@ The task was to design and implement a client application, which is able to comm
     - [Testing TCP](#testing-tcp)
         - [Netcat testing](#netcat-testing)
             - [Pre-auth](#pre-auth)
-                - [Unavailable commands]
-                - [Respecting message parameters]
-                - [Negative reply]
+                - Unavailable commands
+                - Respecting message parameters
+                - Negative reply
             - [While authed](#while-authed)
-                - [Sending messages]
-                - [Receiving messages]
-                - [Joining a channel]
-                - [Receiving invalid message]
-                - [Receiving error]
-                - [Retrying auth]
-                - [User interrupt]
-        - [Reference server](#reference-server)
+                - Sending messages
+                - Receiving messages
+                - Joining a channel
+                - Receiving invalid message
+                - Receiving error
+                - Retrying auth
+                - User interrupt
         - [Piping a file](#piping-a-file)
     - [Testing UDP](#testing-udp)
         - [Dynamic port switch]
@@ -331,6 +329,8 @@ Output: ```ERR: Message is too long. Maximum length is 1400 characters.```\
 Input: ```IPP půlsemka byla free```\
 Output: ```ERR: Message contains non-printable characters and can contain only printable characters and space.```\
 
+*Sending two messages at once with delimiters*
+
 ###### Receiving messages
 In this test case, netcat was used to send a message. The expected output should be in the format "displayname: content", so in this case, it should be "Server: Hello from netcat."
 
@@ -391,6 +391,19 @@ One of the ways to end the connection is with a SIGINT - signal interrupt (press
 Input: SIGINT\
 Netcat Output: ```BYE```
 
+#### Piping a file
+The following test case will showcase piping a test file with commands.
+The test file looks as following with the exception of redacting the secret:
+
+```
+/auth xjakub41 {secret} TCPtester
+Piping a file to send messages for testing
+Another message sent
+/join discord.verified-1
+Trying to send message in a new channel.
+Ending the file, disconnect expected.
+```
+To showcase functionality, a wireshark screenshot shall be showcased.
 
 
 
