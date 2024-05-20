@@ -42,11 +42,8 @@ The task was to design and implement a client application, which is able to comm
                 - Retrying auth
                 - User interrupt
         - [Piping a file](#piping-a-file)
-    - [Testing UDP](#testing-udp)
-        - [Dynamic port switch]
-        - [Retransmission]
-        - [Confirming messages]
-        - [Dumping duplicates]
+    - [Testing UDP](#testing-udp)]
+    - [Bibliography](#bibliography)
 
 
 
@@ -242,6 +239,8 @@ Some test runs have also been executed on the reference virtual machine of NESFI
 
 The whole correct chat client functionality is pretty much demonstrated on the TCP version of this project, so the UDP version mostly tests correct behaviour of UDP itself. There also will not be any testing of parameter parsing since we were supossed to focus on the networking aspects as much as possible.
 
+Unfortunately, due to the size of the project, there was not enough time to write automated end-to-end tests, hence all tests you are going to see have been done manually.
+
 ### Testing TCP
 #### Netcat testing
 Since TCP version of this project is text-based, Netcat is a suitable way to test most of the functionality of the client. To demonstrate the functionality of this project, we can use the Client FSM (available at the project specification - see bibliography) and traverse all of its paths while observing behaviour, which is our testing goal.
@@ -403,14 +402,49 @@ Another message sent
 Trying to send message in a new channel.
 Ending the file, disconnect expected.
 ```
+The command used for testing was ```cat testfile | ./ipk24chat-client -t tcp -s anton5.fit.vutbr.cz```\
 To showcase functionality, a wireshark screenshot shall be showcased.
 ![wiresharkpcap](./img/pipedtcp.png)
 
 From this screenshot, we can see the communication is correct.
 
+### Testing UDP
+Since from testing TCP, we know the client behaviour is correct, the important aspects of UDP will only be showcased here.
+To showcase these aspects, the same test file shall be piped to the client, this time with using the UDP protocol version on the reference server.
+The expected output in this case is seeing correct confirmation of messages during the communication with the server and then ending the connection with a confirmed BYE message.
 
+Testfile
+```
+/auth xjakub41 {secret} UDPTester
+Piping a file to send messages for testing
+Another message sent
+/join discord.verified-1
+Trying to send message in a new channel.
+Ending the file, disconnect expected.
+```
+![wiresharkpcap2](./img/udppcap.png)
 
+We were expecting to see confirmation of messages during the communication.
+From the packet capture in wireshark, we can see the client itself does understand their message has been received as after receiving the confirmation, the client does not retransmit the message again.
+We can also see that after receiving a reply (which happened to come from a different destination port), the client sends confirmation to that message and the communication continues in the correct manner.
+After reaching the end of the test file, the client sends a BYE message and after receiving confirmation for it, it ends. 
+This is the correct behaviour.
 
+From this test, we know dynamic port switching works and message confirmation system works as well.
+However, we have no information about whether retransmission works.
+
+In this last test case, we will start the client as following:
+```./ipk24chat-client -t udp -s git.fit.vutbr.cz```\
+This means the default 250 ms timeout and 3 retries (4 total tries).
+
+And we try to send an AUTH message to this "server", which is in this case our faculty gitea, so logically, no confirm should be received.
+
+Input:```/auth xjakub41 secret milan```\
+Output: ```ERR: Message 1 of type Auth was not confirmed after 3 retries.```
+
+![wiresharkpcap2](./img/retransmission.png)
+On this screenshot of the pcap, we can see the message was not confirmed and has been sent 4 times total.
+Retransmission works correctly.
 
 
 ## Bibliography
