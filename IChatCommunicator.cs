@@ -4,7 +4,7 @@ namespace IPK24ChatClient
     {
         Task ConnectAsync(string serverAddress, int serverPort);
         void Disconnect();
-        Task SendMessageAsync(string message);
+        Task SendMessageAsync(Message message);
         Task<string?> ReceiveMessageAsync();
         Message ParseMessage(string message);
     }

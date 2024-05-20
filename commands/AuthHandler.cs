@@ -29,7 +29,7 @@ namespace IPK24ChatClient
 
             chatClient.displayName = parameters[2];
             Message authMessage = new Message(MessageType.Auth, username: parameters[0], secret: parameters[1], displayName: parameters[2]);
-            await chatCommunicator.SendMessageAsync(authMessage.SerializeToTcp());
+            await chatCommunicator.SendMessageAsync(authMessage);
 
             chatClient.setLastCommandSent(MessageType.Auth);
         }

@@ -24,10 +24,11 @@ namespace IPK24ChatClient
             tcpClient?.Close();
         }
 
-        public async Task SendMessageAsync(string message)
+        public async Task SendMessageAsync(Message message)
         {
             // Convert the string message to byte array and send
-            var byteMessage = Encoding.UTF8.GetBytes(message);
+            string serializedMessage = message.SerializeToTcp();
+            var byteMessage = Encoding.UTF8.GetBytes(serializedMessage);
 
             if (stream == null)
             {
