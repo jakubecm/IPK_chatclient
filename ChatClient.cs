@@ -13,6 +13,7 @@ namespace IPK24ChatClient
         private readonly IChatCommunicator chatCommunicator;
         private string serverAddress;
         private int serverPort;
+        private string protocol;
         private ClientState clientState;
         private MessageType? lastCommandSent;
         public string? displayName;
@@ -23,11 +24,12 @@ namespace IPK24ChatClient
         public TaskCompletionSource<bool>? commandCompletionSource;
 
 
-        public ChatClient(IChatCommunicator chatCommunicator, string serverAddress, int serverPort)
+        public ChatClient(IChatCommunicator chatCommunicator, string serverAddress, int serverPort, string protocol)
         {
             this.chatCommunicator = chatCommunicator;
             this.serverAddress = serverAddress;
             this.serverPort = serverPort;
+            this.protocol = protocol;
             clientState = ClientState.Start;
             lastCommandSent = null;
             channelId = null;
@@ -55,13 +57,14 @@ namespace IPK24ChatClient
             {
                 await chatCommunicator.ConnectAsync(serverAddress, serverPort);
                 Console.WriteLine("Connected to the server. You can start AUTH.");
+                var userInputTask = HandleUserInputAsync(cts.Token);
                 var listeningTask = ListenForMessagesAsync(cts.Token);
-                await HandleUserInputAsync(cts.Token);
-                await listeningTask; // Wait for listening task to complete (e.g., connection closed)
+
+                await Task.WhenAll(listeningTask, userInputTask);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Error: {ex.Message}");
+                Console.Error.WriteLine($"Error in run method: {ex.Message}");
             }
             finally
             {
@@ -82,80 +85,35 @@ namespace IPK24ChatClient
             {
                 while (!cancelToken.IsCancellationRequested)
                 {
-                    // Receive a complete message as a string
-                    var rawData = await chatCommunicator.ReceiveMessageAsync();
-                    if (string.IsNullOrEmpty(rawData))
+                    if (this.protocol == "tcp")
                     {
-                        Console.WriteLine("No more data from server, or connection closed.");
-                        clientState = ClientState.End;
-                        break; // Break the loop if the connection is closed or an error occurred
-                    }
-
-                    // Parse the raw string data into a Message object
-                    var message = chatCommunicator.ParseMessage(rawData);
-
-                    // Handle the message based on its type
-                    switch (message.Type)
-                    {
-                        case MessageType.Msg:
-                            if (clientState == ClientState.Open)
-                            {
-                                Console.WriteLine($"{message.DisplayName}: {message.Content}");
-                            }
-                            else
-                            {
-                                clientState = ClientState.Error;
-                                Console.Error.WriteLine($"ERR: Cannot receive messages in the current state.");
-                                await SendBye();
-                            }
-                            break;
-                        case MessageType.Err:
-                            if (clientState == ClientState.Auth || clientState == ClientState.Open)
-                            {
-                                Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
-                                signalSemaphoreToRelease();
-                                await SendBye();
-                            }
-                            else
-                            {
-                                clientState = ClientState.Error;
-                                Console.Error.WriteLine($"ERR: Cannot receive messages in the current state.");
-                                await SendBye();
-                            }
-                            break;
-                        case MessageType.Reply:
-                            if (clientState == ClientState.Auth || clientState == ClientState.Open)
-                            {
-                                HandleReplyMessage(message);
-                                signalSemaphoreToRelease();
-                            }
-                            else
-                            {
-                                clientState = ClientState.Error;
-                                Console.Error.WriteLine($"ERR: Unexpected reply.");
-                                await SendBye();
-                            }
-                            break;
-                        case MessageType.Bye:
-                            if (clientState != ClientState.Open)
-                            {
-                                clientState = ClientState.Error;
-                                Console.Error.WriteLine($"ERR: Unexpected BYE message.");
-                                await SendBye();
-                            }
-                            Console.WriteLine("Disconnected from the server.");
-                            signalSemaphoreToRelease();
-                            cts.Cancel();
+                        var rawData = await chatCommunicator.ReceiveMessageAsync();
+                        if (string.IsNullOrEmpty(rawData))
+                        {
                             clientState = ClientState.End;
-                            chatCommunicator.Disconnect();
-                            break;
+                            cts.Cancel(); // Signal everyone to stop
+                            break; // Break the loop if the connection is closed or an error occurred
+                        }
 
-                        default:
-                            Console.Error.WriteLine($"ERR: Unknown message type");
-                            signalSemaphoreToRelease();
-                            clientState = ClientState.Error;
-                            await SendBye();
-                            break;
+                        // Parse the raw string data into a Message object
+                        var message = chatCommunicator.ParseMessage(rawData);
+                        if (message != null)
+                        {
+                            HandleMessageByType(message);
+                        }
+                        else continue;
+
+                    }
+                    else
+                    {
+                        int udpTimeout = ((UdpChatCommunicator)chatCommunicator).getUdpTimeout();
+                        var message = await chatCommunicator.ReceiveMessageAsync(udpTimeout);
+
+                        if (message != null)
+                        {
+                            HandleMessageByType(message);
+                        }
+                        else continue;
                     }
                 }
             }
@@ -164,6 +122,84 @@ namespace IPK24ChatClient
                 clientState = ClientState.Error;
                 Console.Error.WriteLine($"ERR: {ex.Message}");
                 await SendBye();
+            }
+        }
+        private async void HandleMessageByType(Message message)
+        {
+            switch (message?.Type)
+            {
+                case MessageType.Msg:
+                    if (clientState == ClientState.Open)
+                    {
+                        Console.WriteLine($"{message.DisplayName}: {message.Content}");
+                    }
+                    else
+                    {
+                        await SendErrorMessage("Cannot receive messages in the current state.");
+                        clientState = ClientState.Error;
+                        Console.Error.WriteLine($"ERR: Cannot receive messages in the current state.");
+                        await SendBye();
+                    }
+                    break;
+                case MessageType.Err:
+                    if (clientState == ClientState.Auth || clientState == ClientState.Open)
+                    {
+                        Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
+                        signalSemaphoreToRelease();
+                        await SendBye();
+                    }
+                    else
+                    {
+                        await SendErrorMessage("Unexpected error.");
+                        clientState = ClientState.Error;
+                        Console.Error.WriteLine($"ERR: Cannot receive messages in the current state.");
+                        await SendBye();
+                    }
+                    break;
+                case MessageType.Reply:
+                    if (clientState == ClientState.Auth || clientState == ClientState.Open)
+                    {
+                        HandleReplyMessage(message);
+                        signalSemaphoreToRelease();
+                    }
+                    else
+                    {
+                        clientState = ClientState.Error;
+                        await SendErrorMessage("Unexpected reply.");
+                        Console.Error.WriteLine($"ERR: Unexpected reply.");
+                        await SendBye();
+                    }
+                    break;
+                case MessageType.Confirm:
+                    // add message ID to confirmedSentMessageIds
+                    if (message.MessageId.HasValue)
+                    {
+                        ushort messageId = message.MessageId.Value;
+                        ((UdpChatCommunicator)chatCommunicator).addConfirmedSentMessageId(messageId);
+                    }
+                    break;
+                case MessageType.Bye:
+                    if (clientState != ClientState.Open)
+                    {
+                        await SendErrorMessage("Unexpected BYE message.");
+                        clientState = ClientState.Error;
+                        Console.Error.WriteLine($"ERR: Unexpected BYE message received.");
+                        await SendBye();
+                    }
+                    Console.WriteLine("Disconnected from the server.");
+                    signalSemaphoreToRelease();
+                    cts.Cancel();
+                    clientState = ClientState.End;
+                    chatCommunicator.Disconnect();
+                    break;
+
+                default:
+                    Console.Error.WriteLine($"ERR: Unknown message type recieved");
+                    signalSemaphoreToRelease();
+                    await SendErrorMessage("Unknown message type");
+                    clientState = ClientState.Error;
+                    await SendBye();
+                    break;
             }
         }
 
@@ -202,8 +238,6 @@ namespace IPK24ChatClient
 
         private async Task HandleUserInputAsync(CancellationToken cancelToken)
         {
-            Console.WriteLine("You can start typing commands. Type '/help' for available commands.");
-
             while (!cancelToken.IsCancellationRequested)
             {
                 if (Console.IsInputRedirected && Console.In.Peek() == -1)
@@ -227,6 +261,7 @@ namespace IPK24ChatClient
                             Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
                             continue;
                         }
+                        // TODO: Make a separate method for this?
                         // Check if user input is max 1400 characters long and contains only printable characters with space (0x21 - 0x7E)
                         if (userInput.Length > 1400)
                         {
@@ -235,7 +270,7 @@ namespace IPK24ChatClient
                         }
                         foreach (char c in userInput)
                         {
-                            if (c < 0x21 || c > 0x7E)
+                            if (c < 0x20 || c > 0x7E)
                             {
                                 Console.Error.WriteLine("Message contains non-printable characters and can contain only printable characters and space.");
                                 continue;
@@ -283,6 +318,7 @@ namespace IPK24ChatClient
                 }
                 else
                 {
+                    // No input available, so wait a bit before checking again
                     try
                     {
                         await Task.Delay(100, cancelToken);
@@ -303,6 +339,12 @@ namespace IPK24ChatClient
             clientState = ClientState.End;
             cts.Cancel();
             chatCommunicator.Disconnect();
+        }
+
+        public async Task SendErrorMessage(string content)
+        {
+            Message errMsg = new Message(MessageType.Err, displayName: this.displayName, content: content);
+            await chatCommunicator.SendMessageAsync(errMsg);
         }
 
         public void setLastCommandSent(MessageType command)
