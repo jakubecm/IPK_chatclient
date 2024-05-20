@@ -88,7 +88,15 @@ namespace IPK24ChatClient
             {
                 e.Cancel = true; // Prevent the process from terminating.
                 signalSemaphoreToRelease();
-                await SendBye();
+
+                if (protocol == "udp" && clientState == ClientState.Start)
+                {
+                    cts.Cancel(); // Do not send BYE message if not "connected" on UDP
+                }
+                else
+                {
+                    await SendBye();
+                }
             };
 
             try
@@ -105,10 +113,7 @@ namespace IPK24ChatClient
             }
             finally
             {
-                if (chatCommunicator != null)
-                {
-                    chatCommunicator.Disconnect();
-                }
+                chatCommunicator.Disconnect();
                 Environment.Exit(0);
             }
 
@@ -223,7 +228,7 @@ namespace IPK24ChatClient
                         clientState = ClientState.Error;
                         Console.Error.WriteLine($"ERR: Unexpected BYE message received.");
                         await SendBye();
-                    }    
+                    }
                     signalSemaphoreToRelease();
                     cts.Cancel();
                     clientState = ClientState.End;
