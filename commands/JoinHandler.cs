@@ -45,25 +45,16 @@ namespace IPK24ChatClient
         /// <exception cref="System.ArgumentException">Thrown when the parameters are invalid</exception>
         public async Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
-            // NOTE : REFACTOR PARAMETER VALIDATION
-            if (parameters.Length != 1)
-            {
-                Console.WriteLine("Usage: /join {ChannelName}");
-                chatClient.commandCompletionSource?.SetResult(true);
-                return;
-            }
-
             if (chatClient.getClientState() != ClientState.Open)
             {
                 Console.Error.WriteLine("You must authenticate before joining a channel.");
-                chatClient.commandCompletionSource?.SetResult(true);
+                chatClient.signalSemaphoreToRelease();
                 return;
             }
 
             if (!validateParameters(parameters))
             {
-                Console.Error.WriteLine("Invalid channel ID. Channel ID must be between 1 and 20 characters long and contain only alphanumeric characters and hyphens.");
-                chatClient.commandCompletionSource?.SetResult(true);
+                chatClient.signalSemaphoreToRelease();
                 return;
             }
 
@@ -84,10 +75,21 @@ namespace IPK24ChatClient
         /// </remarks>
         public bool validateParameters(string[] parameters)
         {
+            if (parameters.Length != 1)
+            {
+                Console.Error.WriteLine("Invalid number of parameters.");
+                return false;
+            }
             // regex to match alphanumeric characters and hyphens, 1-20 characters long
             var regex = new Regex("^[a-zA-Z0-9-.]{1,20}$");
 
-            return regex.IsMatch(parameters[0]);
+            if(!regex.IsMatch(parameters[0]))
+            {
+                Console.Error.WriteLine("Invalid channel ID. Channel ID must be between 1 and 20 characters long and contain only alphanumeric characters and hyphens.");
+                return false;
+            }
+
+            return true;
         }
     }
 

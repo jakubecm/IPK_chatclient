@@ -35,19 +35,13 @@ namespace IPK24ChatClient
         /// <param name="cancellationToken">Cancel token to watch for cancellation</param>
         public Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
-            if (parameters.Length != 1)
-            {
-                Console.WriteLine("Usage: /rename {DisplayName}");
-            }
 
             if (!validateParameters(parameters))
             {
-                Console.Error.WriteLine("Invalid display name. Display name must be between 1 and 20 characters long and contain only printable ASCII characters.");
                 return Task.CompletedTask;
             }
 
             chatClient.displayName = parameters[0];
-            Console.WriteLine($"You are now known as {parameters[0]}");
             return Task.CompletedTask;
         }
 
@@ -58,6 +52,12 @@ namespace IPK24ChatClient
         /// <returns>true if the parameters are valid; otherwise, false.</returns>
         public bool validateParameters(string[] parameters)
         {
+            if (parameters.Length != 1)
+            {
+                Console.Error.WriteLine("Usage: /rename {DisplayName}");
+                return false;
+            }
+
             string displayName = parameters[0];
 
             if (displayName.Length <= 0 || displayName.Length > 20)

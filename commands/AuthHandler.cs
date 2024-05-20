@@ -50,31 +50,17 @@ namespace IPK24ChatClient
         /// <exception cref="System.ArgumentException">Thrown when the parameters are invalid</exception>
         public async Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
-
-            // NOTE : REFACTOR PARAMETER VALIDATION
-            if (parameters.Length != 3 || parameters.Any(string.IsNullOrWhiteSpace))
+            if (!validateParameters(parameters))
             {
-                Console.Error.WriteLine("Invalid parameters.");
-                Console.Error.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
-                Console.Error.WriteLine("Note: Display name cannot be empty.");
                 chatClient.signalSemaphoreToRelease();
                 return;
             }
+
             if (chatClient.getClientState() == ClientState.Open ||
                 chatClient.getClientState() == ClientState.Error ||
                 chatClient.getClientState() == ClientState.End)
             {
                 Console.Error.WriteLine("You are already authenticated.");
-                chatClient.signalSemaphoreToRelease();
-                return;
-            }
-
-            if (!validateParameters(parameters))
-            {
-                Console.Error.WriteLine("Invalid parameters.");
-                Console.Error.WriteLine("Username can only contain alphanumeric characters and be 1-20 characters long.");
-                Console.Error.WriteLine("Secret can only contain alphanumeric characters and be 1-128 characters long.");
-                Console.Error.WriteLine("Display name can only contain printable ASCII characters and be 1-20 characters long.");
                 chatClient.signalSemaphoreToRelease();
                 return;
             }
@@ -95,6 +81,12 @@ namespace IPK24ChatClient
         /// <returns>true if the parameters are valid; otherwise false</returns>
         public bool validateParameters(string[] parameters)
         {
+            if (parameters.Length != 3 || parameters.Any(string.IsNullOrWhiteSpace))
+            {
+                Console.Error.WriteLine("Invalid number of parameters.");
+                return false;
+            }
+
             string username = parameters[0];
             string secret = parameters[1];
             string displayName = parameters[2];
@@ -104,11 +96,13 @@ namespace IPK24ChatClient
 
             if (!usernameRegex.IsMatch(username) || !secretRegex.IsMatch(secret))
             {
+                Console.Error.WriteLine("Invalid username or secret.");
                 return false;
             }
 
             if (displayName.Length <= 0 || displayName.Length > 20)
             {
+                Console.Error.WriteLine("Invalid display name.");
                 return false;
             }
 
@@ -118,6 +112,7 @@ namespace IPK24ChatClient
                 // 0x21 = '!', 0x7E = '~'
                 if (c < '!' || c > '~')
                 {
+                    Console.Error.WriteLine("Invalid display name.");
                     return false;
                 }
             }
