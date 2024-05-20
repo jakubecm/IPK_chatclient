@@ -22,6 +22,7 @@ namespace IPK24ChatClient
         private ClientState clientState;
         private MessageType? lastCommandSent;
         private string? displayName;
+        private CancellationTokenSource cts;
 
 
         public ChatClient(IChatCommunicator chatCommunicator, string serverAddress, int serverPort)
@@ -30,6 +31,7 @@ namespace IPK24ChatClient
             this.serverAddress = serverAddress;
             this.serverPort = serverPort;
             clientState = ClientState.Start;
+            cts = new CancellationTokenSource();
         }
 
         public async Task RunAsync()
@@ -40,6 +42,7 @@ namespace IPK24ChatClient
                 Console.WriteLine("Disconnecting...");
                 Message byeMsg = new Message(MessageType.Bye);
                 await chatCommunicator.SendMessageAsync(byeMsg.SerializeToTcp()); // Send a "BYE" message for a clean disconnect.
+                cts.Cancel(); // Signal for cancellation to the HandleUserInputAsync method
             };
 
             try
@@ -47,9 +50,8 @@ namespace IPK24ChatClient
                 await chatCommunicator.ConnectAsync(serverAddress, serverPort);
                 Console.WriteLine("Connected to the server. You can start AUTH.");
                 var listeningTask = ListenForMessagesAsync();
-                await HandleUserInputAsync();
+                await HandleUserInputAsync(cts.Token);
                 await listeningTask; // Wait for listening task to complete (e.g., connection closed)
-                Console.WriteLine("Listen task over.");
             }
             catch (Exception ex)
             {
@@ -88,6 +90,7 @@ namespace IPK24ChatClient
                             break;
                         case MessageType.Err:
                             Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
+                            clientState = ClientState.Error;
                             break;
                         case MessageType.Reply:
                             HandleReplyMessage(message);
@@ -142,78 +145,93 @@ namespace IPK24ChatClient
 
 
 
-        private async Task HandleUserInputAsync()
+        private async Task HandleUserInputAsync(CancellationToken cancelToken)
         {
             Console.WriteLine("You can start typing commands. Type '/help' for available commands.");
 
-            while (clientState != ClientState.End)
+            while (clientState != ClientState.End && !cancelToken.IsCancellationRequested)
             {
-                string? userInput = Console.ReadLine();
-                if (string.IsNullOrEmpty(userInput)) continue;
+                if (Console.KeyAvailable)
+                {
+                    string? userInput = Console.ReadLine();
+                    if (string.IsNullOrEmpty(userInput)) continue;
 
-                if (!userInput.StartsWith("/")){
-
-                    if (clientState != ClientState.Open)
+                    if (!userInput.StartsWith("/"))
                     {
-                        Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
+
+                        if (clientState != ClientState.Open)
+                        {
+                            Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
+                            continue;
+                        }
+
+                        Message chatMessage = new Message(MessageType.Msg, displayName: this.displayName, content: userInput);
+                        await chatCommunicator.SendMessageAsync(chatMessage.SerializeToTcp());
                         continue;
                     }
 
-                    Message chatMessage = new Message(MessageType.Msg, displayName: this.displayName, content: userInput);
-                    await chatCommunicator.SendMessageAsync(chatMessage.SerializeToTcp());
-                    continue;
+                    // Split the userInput into command and parameters
+                    var inputParts = userInput.Split(' ');
+                    var command = inputParts[0].ToLower();
+
+                    switch (command)
+                    {
+                        case "/auth":
+                            lastCommandSent = MessageType.Auth;
+
+                            if (inputParts.Length != 4)
+                            {
+                                Console.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
+                                break;
+                            }
+
+                            this.displayName = inputParts[3]; // Update local display name
+                            Message authMessage = new Message(MessageType.Auth, username: inputParts[1], secret: inputParts[2], displayName: inputParts[3]);
+                            await chatCommunicator.SendMessageAsync(authMessage.SerializeToTcp());
+                            break;
+
+                        case "/join":
+                            lastCommandSent = MessageType.Join;
+
+                            if (inputParts.Length != 2)
+                            {
+                                Console.WriteLine("Usage: /join {ChannelID}");
+                                break;
+                            }
+                            Message joinMessage = new Message(MessageType.Join, channelId: inputParts[1], displayName: this.displayName);
+                            await chatCommunicator.SendMessageAsync(joinMessage.SerializeToTcp());
+                            break;
+
+                        case "/rename":
+
+                            if (inputParts.Length != 2)
+                            {
+                                Console.WriteLine("Usage: /rename {DisplayName}");
+                                break;
+                            }
+                            this.displayName = inputParts[1];
+                            Console.WriteLine($"Display name changed to: {this.displayName}");
+                            break;
+
+                        case "/help":
+                            PrintHelpCommands();
+                            break;
+
+                        default:
+                            Console.WriteLine("Unknown command. Type '/help' for available commands.");
+                            break;
+                    }
                 }
-
-                // Split the userInput into command and parameters
-                var inputParts = userInput.Split(' ');
-                var command = inputParts[0].ToLower();
-
-                switch (command)
+                else
                 {
-                    case "/auth":
-                        lastCommandSent = MessageType.Auth;
-
-                        if (inputParts.Length != 4)
-                        {
-                            Console.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
-                            break;
-                        }
-
-                        this.displayName = inputParts[3]; // Update local display name
-                        Message authMessage = new Message(MessageType.Auth, username: inputParts[1], secret: inputParts[2], displayName: inputParts[3]);
-                        await chatCommunicator.SendMessageAsync(authMessage.SerializeToTcp());
+                    try
+                    {
+                        await Task.Delay(100, cancelToken);
+                    }
+                    catch (TaskCanceledException)
+                    {
                         break;
-
-                    case "/join":
-                        lastCommandSent = MessageType.Join;
-
-                        if (inputParts.Length != 2)
-                        {
-                            Console.WriteLine("Usage: /join {ChannelID}");
-                            break;
-                        }
-                        Message joinMessage = new Message(MessageType.Join, channelId: inputParts[1], displayName: this.displayName);
-                        await chatCommunicator.SendMessageAsync(joinMessage.SerializeToTcp());
-                        break;
-
-                    case "/rename":
-
-                        if (inputParts.Length != 2)
-                        {
-                            Console.WriteLine("Usage: /rename {DisplayName}");
-                            break;
-                        }
-                        this.displayName = inputParts[1];
-                        Console.WriteLine($"Display name changed to: {this.displayName}");
-                        break;
-
-                    case "/help":
-                        PrintHelpCommands();
-                        break;
-
-                    default:
-                        Console.WriteLine("Unknown command. Type '/help' for available commands.");
-                        break;
+                    }
                 }
             }
         }
