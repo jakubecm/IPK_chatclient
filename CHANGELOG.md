@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.0.0](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/compare/v2.1.0...v3.0.0) (2024-03-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* - Removed ParseMessage methods from IChatCommunicator interface
+- Merged ReceiveMessageAsync() methods into one
+- Now both communicators use Message parsing static methods
+
+### Bug Fixes
+
+* reply needs to print to stderr ([8047457](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/8047457edb41af9e2dbfd566a64c2922af6dd52b))
+* resolved overloading problem ([60595ae](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/60595ae966c8d11641af0c127bd411f26f6fef52))
+
 ## [2.1.0](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/compare/v2.0.0...v2.1.0) (2024-03-27)
 
 
