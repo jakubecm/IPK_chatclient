@@ -254,7 +254,7 @@ namespace IPK24ChatClient
         {
             if (message.ReplySuccess == true)
             {
-                Console.WriteLine($"Success: {message.Content}");
+                Console.Error.WriteLine($"Success: {message.Content}");
                 switch (lastCommandSent)
                 {
                     case MessageType.Auth:
