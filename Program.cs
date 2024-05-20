@@ -6,8 +6,8 @@ namespace IPK24ChatClient
         {
             // Default values
             IChatCommunicator chatCommunicator;
-            string protocol = "tcp";
-            string serverAddress = "localhost";
+            string? protocol = null;
+            string? serverAddress = null;
             int serverPort = 4567;
             int udpTimeout = 250; // milliseconds
             int udpRetries = 3;
@@ -40,6 +40,13 @@ namespace IPK24ChatClient
                 }
             }
 
+            // Validate required arguments
+            if (protocol == null || serverAddress == null)
+            {
+                Console.Error.WriteLine("Error: Missing required arguments. Usage: IPK24ChatClient -t [tcp/udp] -s [server address]");
+                return;
+            }
+
             // Validate protocol option
             if (protocol != "tcp" && protocol != "udp")
             {
@@ -47,10 +54,12 @@ namespace IPK24ChatClient
                 return;
             }
 
-            if(protocol == "tcp"){
+            if (protocol == "tcp")
+            {
                 chatCommunicator = new TcpChatCommunicator();
             }
-            else{
+            else
+            {
                 chatCommunicator = new TcpChatCommunicator();
             }
 
