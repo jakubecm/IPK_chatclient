@@ -66,8 +66,8 @@ namespace IPK24ChatClient
             finally
             {
                 Console.WriteLine("Shutting down...");
-                
-                if(chatCommunicator != null)
+
+                if (chatCommunicator != null)
                 {
                     chatCommunicator.Disconnect();
                 }
@@ -98,14 +98,28 @@ namespace IPK24ChatClient
                     switch (message.Type)
                     {
                         case MessageType.Msg:
-                            Console.WriteLine($"{message.DisplayName}: {message.Content}");
+                            if (clientState == ClientState.Open)
+                            {
+                                Console.WriteLine($"{message.DisplayName}: {message.Content}");
+                            }
+                            else
+                            {
+                                clientState = ClientState.Error;
+                                Console.Error.WriteLine($"ERR: Cannot receive messages in the current state.");
+                                await SendBye();
+                            }
                             break;
                         case MessageType.Err:
-                            Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
-
                             if (clientState == ClientState.Auth || clientState == ClientState.Open)
                             {
+                                Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
                                 signalSemaphoreToRelease();
+                                await SendBye();
+                            }
+                            else
+                            {
+                                clientState = ClientState.Error;
+                                Console.Error.WriteLine($"ERR: Cannot receive messages in the current state.");
                                 await SendBye();
                             }
                             break;
@@ -114,12 +128,19 @@ namespace IPK24ChatClient
                             signalSemaphoreToRelease();
                             break;
                         case MessageType.Bye:
+                            if (clientState != ClientState.Open)
+                            {
+                                clientState = ClientState.Error;
+                                Console.Error.WriteLine($"ERR: Unexpected BYE message.");
+                                await SendBye();
+                            }
                             Console.WriteLine("Disconnected from the server.");
                             signalSemaphoreToRelease();
                             cts.Cancel();
                             clientState = ClientState.End;
                             chatCommunicator.Disconnect();
-                            break; 
+                            break;
+
                         default:
                             Console.Error.WriteLine($"ERR: Unknown message type");
                             signalSemaphoreToRelease();
@@ -131,8 +152,9 @@ namespace IPK24ChatClient
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"ERR: {ex.Message}");
                 clientState = ClientState.Error;
+                Console.Error.WriteLine($"ERR: {ex.Message}");
+                await SendBye();
             }
         }
 
