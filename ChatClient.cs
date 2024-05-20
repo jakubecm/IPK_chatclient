@@ -292,7 +292,6 @@ namespace IPK24ChatClient
                 // Check if input is redirected and there is no more input
                 if (Console.IsInputRedirected && Console.In.Peek() == -1)
                 {
-                    clientState = ClientState.End;
                     await SendBye();
                     break;
                 }
