@@ -46,9 +46,16 @@ namespace IPK24ChatClient
 
         public void Disconnect()
         {
-            stream?.Close();
-            reader?.Close();
-            tcpClient?.Close();
+            if (stream != null)
+            {
+                stream.Close();
+            }
+            if(reader != null){
+                reader.Close();
+            }
+            if(tcpClient!.Connected){
+                tcpClient.Close();
+            }
         }
 
         public async Task SendMessageAsync(Message message)
