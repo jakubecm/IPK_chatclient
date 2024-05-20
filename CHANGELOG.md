@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.1.0](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/compare/v3.0.0...v3.1.0) (2024-04-01)
+
+
+### Features
+
+* makefile pack command to zip into an archive ([3d0c630](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/3d0c630a163ec9364e4698f4fb65c2048c6d9261))
+
+
+### Bug Fixes
+
+* check if resources are not null before disposing in TcpChatComm ([e9adbe6](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/e9adbe6efbabce982579bcfa60fd7d271cb06941))
+* do not allow rename until in open state ([7f55aea](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/7f55aeafefeda7686c8f2620e3bede9f55155d37))
+* don't send bye message for UDP on ctrl+c in start state ([547f5ec](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/547f5ecf48def42dfbf39ec237194b9efc27f842))
+* error messages formatting in command handlers ([044e90e](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/044e90e55bf981bfaf0973f5cfb1cd1983469c74))
+* hotfix for not sending messages containing non-printable chars ([2be6f2f](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/2be6f2f770e1a53233abdf0b9adedab128cc93ca))
+* messageId rework (little endian was used in receive) ([b0e65be](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/b0e65be39947786fa93c6e29007a5b6996d628fc))
+* removing unnecessary state switch in ChatClient ([e9e1e2a](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/e9e1e2a42046d11270631751f25c9b9151f154a2))
+* slight docs fixes in command handlers ([f68374a](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/f68374a55b1ed49f5c02c162f64513211f2b0c48))
+
 ## [3.0.0](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/compare/v2.1.0...v3.0.0) (2024-03-28)
 
 
