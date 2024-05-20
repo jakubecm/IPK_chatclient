@@ -124,8 +124,17 @@ namespace IPK24ChatClient
                             }
                             break;
                         case MessageType.Reply:
-                            HandleReplyMessage(message);
-                            signalSemaphoreToRelease();
+                            if (clientState == ClientState.Auth || clientState == ClientState.Open)
+                            {
+                                HandleReplyMessage(message);
+                                signalSemaphoreToRelease();
+                            }
+                            else
+                            {
+                                clientState = ClientState.Error;
+                                Console.Error.WriteLine($"ERR: Unexpected reply.");
+                                await SendBye();
+                            }
                             break;
                         case MessageType.Bye:
                             if (clientState != ClientState.Open)
