@@ -2,19 +2,36 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
+// -----------------------------------------------------------------------------
+// Project: IPK24ChatClient
+// File: TcpChatCommunicator.cs
+// Author: Milan Jakubec (xjakub41)
+// Date: 2024-03-26
+// License: GPU General Public License v3.0
+// Description: This is implementation of IChatCommunicator for TCP communication.
+// -----------------------------------------------------------------------------
+
 namespace IPK24ChatClient
 {
+    /// <summary>
+    /// Implementation of IChatCommunicator for TCP communication.
+    /// </summary>
     public class TcpChatCommunicator : IChatCommunicator
     {
+        /// <value>The TCP client instance used for communication.</value>
         private TcpClient? tcpClient;
+
+        /// <value>The network stream used for communication.</value>
         private NetworkStream? stream;
+
+        /// <value>The stream reader used for reading messages from the network stream.</value>
         private StreamReader? reader;
 
         public async Task ConnectAsync(string serverAddress, int serverPort)
         {
-            // limit to only ipv4
             tcpClient = new TcpClient();
             var parsedAddress = Dns.GetHostAddresses(serverAddress);
+            // limit to only ipv4
             IPAddress? ipv4addr = parsedAddress.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
 
             if (ipv4addr == null)
@@ -76,7 +93,7 @@ namespace IPK24ChatClient
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception) // In case user cancels the operation, dont throw exception
             {
                 return null;
             }

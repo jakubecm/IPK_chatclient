@@ -1,21 +1,44 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Linq;
+// -----------------------------------------------------------------------------
+// Project: IPK24ChatClient
+// File: UdpChatCommunicator.cs
+// Author: Milan Jakubec (xjakub41)
+// Date: 2024-03-26
+// License: GPU General Public License v3.0
+// Description: This is implementation of IChatCommunicator for UDP communication.
+// -----------------------------------------------------------------------------
 
 namespace IPK24ChatClient
 {
+    /// <summary>
+    /// Implementation of IChatCommunicator for UDP communication.
+    /// </summary>
     public class UdpChatCommunicator : IChatCommunicator
     {
+        /// <value>The UDP client instance used for communication.</value>
         private UdpClient? udpClient;
-        private IPEndPoint? serverEndpoint;
-        public int udpRetries;
-        public int udpTimeout;
-        private ushort messageId = 0;
-        private bool dynPortAllocated = false;
-        private HashSet<ushort> receivedMessageIds = new HashSet<ushort>();
-        private HashSet<ushort> confirmedSentMessageIds = new HashSet<ushort>();
 
+        /// <value>The server endpoint used for communication.</value>
+        private IPEndPoint? serverEndpoint;
+
+        /// <value>The number of retries for sending a message.</value>
+        public int udpRetries;
+
+        /// <value>The timeout in miliseconds for receiving a confirm to a message.</value>
+        public int udpTimeout;
+
+        /// <value>The message ID used for sending messages.</value>
+        private ushort messageId = 0;
+
+        /// <value>Flag indicating if the dynamic port was allocated.</value>
+        private bool dynPortAllocated = false;
+
+        /// <value>Set of received message IDs. Used to drop any repeating messages.</value>
+        private HashSet<ushort> receivedMessageIds = new HashSet<ushort>();
+
+        /// <value>Set of confirmed sent message IDs. Used to check whether to retransmit message.</value>
+        private HashSet<ushort> confirmedSentMessageIds = new HashSet<ushort>();
 
         public Task ConnectAsync(string serverAddress, int serverPort)
         {
@@ -27,6 +50,9 @@ namespace IPK24ChatClient
             {
                 throw new ArgumentException("Server address is not a valid IPv4 address.");
             }
+
+            // Do not "connect" the UDP client, just set the server endpoint
+            // Reason : dynamic port allocation
             serverEndpoint = new IPEndPoint(ipv4addr, serverPort);
             udpClient = new UdpClient();
             return Task.CompletedTask;
@@ -56,29 +82,28 @@ namespace IPK24ChatClient
 
             var messageBytes = message.SerializeToUdp();
 
+            // Retranmission loop
             while (retries <= udpRetries && !confirmed)
             {
-                if (!dynPortAllocated)
+                if (!dynPortAllocated) // if the dynamic port is not allocated, send to the server endpoint
                 {
                     await udpClient.SendAsync(messageBytes, messageBytes.Length, serverEndpoint);
 
-                    if (message.Type == MessageType.Confirm) 
+                    if (message.Type == MessageType.Confirm)
                     {
-                        Console.WriteLine($"Sent confirm message: {message.MessageId}");
                         return;
                     }
                     confirmed = await WaitForConfirmationAsync(messageId, udpTimeout);
                     retries++;
                 }
-                else
+                else // otherwise send to the connected endpoint
                 {
                     await udpClient.SendAsync(messageBytes, messageBytes.Length);
 
                     if (message.Type == MessageType.Confirm)
                     {
-                        Console.WriteLine($"Sent confirm message: {message.MessageId}");
                         messageId++;
-                        return;
+                        return; // don't wait for confirmation for confirm messages
                     }
                     confirmed = await WaitForConfirmationAsync(messageId, udpTimeout);
                     retries++;
@@ -93,9 +118,15 @@ namespace IPK24ChatClient
             messageId++;
         }
 
+        /// <summary>
+        /// Waits for a confirmation message with the given message ID.
+        /// </summary>
+        /// <param name="messageid">ID of the message of which we want confirmation</param>
+        /// <param name="timeoutMilliseconds">UDP retransmission timeout in miliseconds</param>
+        /// <returns>True if the message was confirmed, false otherwise</returns>
         private async Task<bool> WaitForConfirmationAsync(ushort messageid, int timeoutMilliseconds)
         {
- 
+
             var stopWatch = System.Diagnostics.Stopwatch.StartNew();
             while (stopWatch.ElapsedMilliseconds < timeoutMilliseconds)
             {
@@ -141,7 +172,7 @@ namespace IPK24ChatClient
                         {
                             // Try to add the message ID to the set
                             // If it is already there, return null (message was already received)
-                            if (!receivedMessageIds.Add((ushort)message.MessageId)) 
+                            if (!receivedMessageIds.Add((ushort)message.MessageId))
                             {
                                 return null;
                             }
@@ -170,17 +201,29 @@ namespace IPK24ChatClient
             return Message.ParseFromUdp(data);
         }
 
-
+        /// <summary>
+        /// Getter for the UDP timeout.
+        /// </summary>
+        /// <returns>int value of UDP timeout in miliseconds</returns>
         public int getUdpTimeout()
         {
             return udpTimeout;
         }
-
+        
+        /// <summary>
+        /// Adds message ID to the set of confirmed sent message IDs.
+        /// </summary>
+        /// <param name="messageId">ushort message ID to add to the set</param>
         public void addConfirmedSentMessageId(ushort messageId)
         {
             confirmedSentMessageIds.Add(messageId);
         }
 
+        /// <summary>
+        /// Checks if the message ID is in the set of confirmed sent message IDs.
+        /// </summary>
+        /// <param name="messageId">messageId to search for</param>
+        /// <returns>true if message is found in the set; false otherwise</returns>
         public bool CheckIfConfirmed(ushort messageId)
         {
             return confirmedSentMessageIds.Contains(messageId);
