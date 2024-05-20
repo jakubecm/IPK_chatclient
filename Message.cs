@@ -2,7 +2,6 @@
 // Includes serialization and deserialization methods for converting messages to and from byte arrays or strings.
 
 using System.Text;
-using Microsoft.VisualBasic;
 
 namespace IPK24ChatClient
 {
@@ -21,7 +20,7 @@ namespace IPK24ChatClient
     public class Message
     {
         public MessageType Type { get; }
-        public ushort? MessageId { get; } // Relevant for UDP
+        public ushort? MessageId { get; set;} // Relevant for UDP
         public string? Username { get; }
         public string? DisplayName { get; }
         public string? ChannelId { get; }
@@ -29,23 +28,9 @@ namespace IPK24ChatClient
         public string? Content { get; }
         public bool? ReplySuccess { get; } // Relevant for Reply messages
 
-        // Constructor for TCP messages where the fields are more flexible based on message type
-        public Message(MessageType type, string? username = null, string? displayName = null, 
-                       string? channelId = null, string? secret = null, string? content = null, 
-                       bool? replySuccess = null)
-        {
-            Type = type;
-            Username = username;
-            DisplayName = displayName;
-            ChannelId = channelId;
-            Secret = secret;
-            Content = content;
-            ReplySuccess = replySuccess;
-        }
-
-        // Constructor for UDP messages, including MessageId which is essential for UDP communication
-        public Message(MessageType type, ushort messageId, string? username = null, 
-                       string? displayName = null, string? channelId = null, string? secret = null, 
+        // Constructor for messages, including MessageId which is essential for UDP communication
+        public Message(MessageType type, ushort? messageId = null, string? username = null,
+                       string? displayName = null, string? channelId = null, string? secret = null,
                        string? content = null, bool? replySuccess = null)
         {
             Type = type;
@@ -95,7 +80,8 @@ namespace IPK24ChatClient
             {
                 // MSG FROM <display-name> IS <content>
                 case "MSG":
-                    if (parts[1].ToUpper() != "FROM" || parts[3].ToUpper() != "IS")
+                    if(parts.Length < 5) return new Message(MessageType.Invalid);
+                    if (parts[1].ToUpper() != "FROM" && parts[3].ToUpper() != "IS")
                     {
                         return new Message(MessageType.Invalid);
                     }
@@ -105,7 +91,9 @@ namespace IPK24ChatClient
 
                 // ERR FROM <display-name> IS <content>
                 case "ERR":
-                    if(parts[1].ToUpper() != "FROM" || parts[3].ToUpper() != "IS"){
+                    if(parts.Length < 5) return new Message(MessageType.Invalid);
+                    if (parts[1].ToUpper() != "FROM" && parts[3].ToUpper() != "IS")
+                    {
                         return new Message(MessageType.Invalid);
                     }
                     var displayNameErr = parts[2];
@@ -114,8 +102,8 @@ namespace IPK24ChatClient
 
                 // REPLY (OK|NOK) IS <content>
                 case "REPLY":
-                    
-                    if ((parts[1].ToUpper() != "OK" && parts[1].ToUpper() != "NOK") || parts[2].ToUpper() != "IS")
+                    if(parts.Length < 4) return new Message(MessageType.Invalid);
+                    if (parts[1].ToUpper() != "OK" && parts[1].ToUpper() != "NOK" && parts[2].ToUpper() != "IS")
                     {
                         return new Message(MessageType.Invalid);
                     }
@@ -132,5 +120,145 @@ namespace IPK24ChatClient
             }
 
         }
+
+        public byte[] SerializeToUdp()
+        {
+            var ms = new MemoryStream();
+            var writer = new BinaryWriter(ms, Encoding.ASCII);
+
+            // Write message type as byte
+            byte messageTypeByte = GetByteValFromMessageType(Type);
+            writer.Write(messageTypeByte);
+
+            // Write message ID
+            writer.Write(MessageId == null ? (short)0 : (short)MessageId);
+
+
+            // Write message-specific data
+            switch (Type)
+            {
+                case MessageType.Auth:
+                    writer.Write(Encoding.ASCII.GetBytes($"{Username}\0{DisplayName}\0{Secret}\0"));
+                    break;
+                case MessageType.Join:
+                    writer.Write(Encoding.ASCII.GetBytes($"{ChannelId}\0{DisplayName}\0"));
+                    break;
+                case MessageType.Msg:
+                case MessageType.Err:
+                    writer.Write(Encoding.ASCII.GetBytes($"{DisplayName}\0{Content}\0"));
+                    break;
+                case MessageType.Bye:
+                    // No additional data needed
+                    break;
+                case MessageType.Confirm:
+                    // No additional data needed
+                    break;
+            }
+
+            return ms.ToArray();
+        }
+
+        public static Message ParseFromUdp(byte[] data)
+        {
+            var ms = new MemoryStream(data);
+            var reader = new BinaryReader(ms, Encoding.ASCII);
+
+            // Read message type
+            MessageType type = GetMessageTypeFromByte(reader.ReadByte());
+
+            // Read message ID
+            ushort messageId = (ushort)reader.ReadUInt16();
+
+            // Read the rest of the message based on type
+            string[] parts;
+            switch (type)
+            {
+                case MessageType.Msg:
+                case MessageType.Err:
+                    parts = ReadNullTerminatedStrings(reader, 2);
+                    return new Message(type, messageId, displayName: parts[0], content: parts[1]);
+                case MessageType.Reply:
+                    bool success = reader.ReadByte() == 1;
+                    _ = reader.ReadUInt16(); // discard the refmessageid
+                    string content = ReadNullTerminatedString(reader);
+                    return new Message(type, messageId, replySuccess: success, content: content);
+                case MessageType.Confirm:
+                    return new Message(type, messageId);
+                case MessageType.Bye:
+                    return new Message(type, messageId);
+            }
+
+            return new Message(MessageType.Invalid);
+        }
+
+        // Helper method to read strings terminated by a null byte
+        private static string[] ReadNullTerminatedStrings(BinaryReader reader, int count)
+        {
+            var results = new List<string>();
+            for (int i = 0; i < count; i++)
+            {
+                results.Add(ReadNullTerminatedString(reader));
+            }
+            return results.ToArray();
+        }
+
+        private static string ReadNullTerminatedString(BinaryReader reader)
+        {
+            var bytes = new List<byte>();
+            byte b;
+            while ((b = reader.ReadByte()) != 0)
+            {
+                bytes.Add(b);
+            }
+            return Encoding.ASCII.GetString(bytes.ToArray());
+        }
+
+        public static byte GetByteValFromMessageType(MessageType type)
+        {
+            switch (type)
+            {
+                case MessageType.Confirm:
+                    return 0x00;
+                case MessageType.Reply:
+                    return 0x01;
+                case MessageType.Auth:
+                    return 0x02;
+                case MessageType.Join:
+                    return 0x03;
+                case MessageType.Msg:
+                    return 0x04;
+                case MessageType.Err:
+                    return 0xFE;
+                case MessageType.Bye:
+                    return 0xFF;
+                default:
+                    return 0xFE;
+            }
+        }
+
+        public static MessageType GetMessageTypeFromByte(byte type)
+        {
+            switch (type)
+            {
+                case 0x00:
+                    return MessageType.Confirm;
+                case 0x01:
+                    return MessageType.Reply;
+                case 0x02:
+                    return MessageType.Auth;
+                case 0x03:
+                    return MessageType.Join;
+                case 0x04:
+                    return MessageType.Msg;
+                case 0xFE:
+                    return MessageType.Err;
+                case 0xFF:
+                    return MessageType.Bye;
+                default:
+                    return MessageType.Invalid;
+            }
+        }
     }
+
+
 }
