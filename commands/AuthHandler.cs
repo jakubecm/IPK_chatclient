@@ -1,26 +1,63 @@
 using System.Text.RegularExpressions;
 
+// -----------------------------------------------------------------------------
+// Project: IPK24ChatClient
+// File: AuthHandler.cs
+// Author: Milan Jakubec (xjakub41)
+// Date: 2024-03-26
+// License: GPU General Public License v3.0
+// Description: Implementation of authentication handler for the chat client.
+// -----------------------------------------------------------------------------
+
 namespace IPK24ChatClient
 {
+    /// <summary>
+    /// Handles authentication for the chat client.
+    /// </summary>
+    /// <remarks>
+    /// This class processes authentication by validating input parameters and managing the authentication state
+    /// of the client. It requires server confirmation for the authentication to be considered successful.
+    /// </remarks>
     public class AuthHandler : ICommandHandler
     {
         private readonly IChatCommunicator chatCommunicator;
         private readonly ChatClient chatClient;
+
+        /// <value>True if the command requires server confirmation, false otherwise.</value>
         public bool RequiresServerConfirmation => true;
 
+        /// <summary>
+        /// Constructor for the AuthHandler class.
+        /// </summary>
+        /// <param name="chatCommunicator">The chat communicator instance used to send and receive messages (TCP/UDP)</param>
+        /// <param name="chatClient">The chat client instance</param>
         public AuthHandler(IChatCommunicator chatCommunicator, ChatClient chatClient)
         {
             this.chatCommunicator = chatCommunicator;
             this.chatClient = chatClient;
         }
 
+        /// <summary>
+        /// Executes the authentication command with the given parameters.
+        /// </summary>
+        /// <param name="parameters">Authentication parameters : Username, Secret, DisplayName</param>
+        /// <param name="cancellationToken">Token used to observe whether the task was not cancelled</param>
+        /// <remarks>
+        /// This method validates the parameters and sends an authentication message to the server.
+        /// It sets the client state to Auth and the last command sent to Auth, if the parameters are valid.
+        /// Usage: /auth {Username} {Secret} {DisplayName}
+        /// </remarks>
+        /// <exception cref="System.ArgumentException">Thrown when the parameters are invalid</exception>
         public async Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
+
+            // NOTE : REFACTOR PARAMETER VALIDATION
             if (parameters.Length != 3 || parameters.Any(string.IsNullOrWhiteSpace))
             {
-                Console.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
-                Console.WriteLine("Note: Display name cannot be empty.");
-                chatClient.commandCompletionSource?.SetResult(true);
+                Console.Error.WriteLine("Invalid parameters.");
+                Console.Error.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
+                Console.Error.WriteLine("Note: Display name cannot be empty.");
+                chatClient.signalSemaphoreToRelease();
                 return;
             }
             if (chatClient.getClientState() == ClientState.Open ||
@@ -28,7 +65,7 @@ namespace IPK24ChatClient
                 chatClient.getClientState() == ClientState.End)
             {
                 Console.Error.WriteLine("You are already authenticated.");
-                chatClient.commandCompletionSource?.SetResult(true);
+                chatClient.signalSemaphoreToRelease();
                 return;
             }
 
@@ -38,7 +75,7 @@ namespace IPK24ChatClient
                 Console.Error.WriteLine("Username can only contain alphanumeric characters and be 1-20 characters long.");
                 Console.Error.WriteLine("Secret can only contain alphanumeric characters and be 1-128 characters long.");
                 Console.Error.WriteLine("Display name can only contain printable ASCII characters and be 1-20 characters long.");
-                chatClient.commandCompletionSource?.SetResult(true);
+                chatClient.signalSemaphoreToRelease();
                 return;
             }
 
@@ -51,6 +88,11 @@ namespace IPK24ChatClient
 
         }
 
+        /// <summary>
+        /// Validates the authentication parameters.
+        /// </summary>
+        /// <param name="parameters">Parameters to validate</param>
+        /// <returns>true if the parameters are valid; otherwise false</returns>
         public bool validateParameters(string[] parameters)
         {
             string username = parameters[0];
