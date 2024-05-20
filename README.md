@@ -13,7 +13,7 @@ The task was to design and implement a client application, which is able to comm
         - [How sockets work](#how-sockets-work)
         - [Key concepts](#key-concepts)
         - [Practical use](#practical-use)
-        
+
 - [The project goals](#the-project-goals)
 - [Implementation](#implementation)
     - [Layout](#design)
@@ -28,6 +28,27 @@ The task was to design and implement a client application, which is able to comm
         - [Handling port switching (UDP)](#handling-port-switching-(UDP))
         - [Sequential working with messages](#sequential-working-with-messages)
 - [Testing](#testing)
+    - [Testing TCP](#testing-tcp)
+        - [Netcat testing](#netcat-testing)
+            - [Pre-auth](#pre-auth)
+                - [Unavailable commands]
+                - [Respecting message parameters]
+                - [Negative reply]
+            - [While authed](#while-authed)
+                - [Sending messages]
+                - [Receiving messages]
+                - [Joining a channel]
+                - [Receiving invalid message]
+                - [Receiving error]
+                - [Retrying auth]
+                - [User interrupt]
+        - [Reference server](#reference-server)
+        - [Piping a file](#piping-a-file)
+    - [Testing UDP](#testing-udp)
+        - [Dynamic port switch]
+        - [Retransmission]
+        - [Confirming messages]
+        - [Dumping duplicates]
 
 
 
@@ -216,7 +237,161 @@ During the implementation of this project, the requirement for parallel message 
 This was solved by implementing the new, earlier mentioned boolean into command handler interface, which specifies whether the command requires server confirmation or not. The chat client makes use of this in its input handling method and checks this boolean, if it is set to true, a implemented semaphore of the *SemaphoreSlim* class doesn't let any other input be sent until the reply is recieved. However, because of this, a method named *SignalSemaphoreToRelease()* had to be implemented, because sometimes the command fails before it even gets sent (for example if the user inputs wrong parameters with the command etc.). 
 
 ## Testing
-TBD
+The testing of this chat client was mostly done on a classical home network, the parts where Wireshark communication is displayed was while connected on the KolejNet BUT network.
+
+The hardware used for testing was an Apple MacBook Air 13, M1, 16GB, 512GB, 7-core GPU (M1, 2020) running a .NET version 8.0.201.
+Some test runs have also been executed on the reference virtual machine of NESFIT with the C# Nix development environment active.
+
+The whole correct chat client functionality is pretty much demonstrated on the TCP version of this project, so the UDP version mostly tests correct behaviour of UDP itself. There also will not be any testing of parameter parsing since we were supossed to focus on the networking aspects as much as possible.
+
+### Testing TCP
+#### Netcat testing
+Since TCP version of this project is text-based, Netcat is a suitable way to test most of the functionality of the client. To demonstrate the functionality of this project, we can use the Client FSM (available at the project specification - see bibliography) and traverse all of its paths while observing behaviour, which is our testing goal.
+
+*The netcat testing command:*
+```nc -4 -c -l -v 127.0.0.1 4567```
+
+##### Pre-auth
+The first testing scenario is right after launching the client. The client is in start or auth state of the client FSM here.
+
+###### Unavailable commands
+The specification says the application must not terminate in case the provided user input is unacceptable at the current client state and must inform the user about such situation. The expected output is always a useful error message.
+
+*Sending a message*\
+Input: ```This is a test message```
+
+Output: ```ERR: You must authenticate and join a channel before sending messages.```
+
+*Trying join command*\
+Input: ```/join ipk-despair```
+
+Output: ```ERR: You must authenticate before joining a channel.```
+
+*Trying rename command*\
+Input: ```/rename xplagiat0b```
+
+Output: ```ERR: You must be authenticated to be able to rename.```
+###### Respecting auth parameters
+Username and display name can be max 20 characters long, secret max 128 characters. All of these must contain only [A-z]|[a-z]|[0-9]|- (e.g., Abc-23). Expected output is again an error message without termination.
+
+*Invalid username*\
+Input: ```/auth thisisover20characterslongname secret coolUser```\
+Output: ```ERR: Invalid username or secret```
+
+*Invalid secret*\
+Input: ```/auth username sečřet coolUser```\
+Output: ```ERR: Invalid username or secret```
+
+*Invalid display name (whitespace)*\
+Input: ```/auth username secret  ```\
+Output: ```ERR: Invalid number of parameters.```
+
+###### Negative reply
+After receiving a negative reply to the auth message, it is expected the client will stay in the auth state, unable to send messages and not terminate.
+
+*Receiving negative reply & sending a message*\
+Input: ```/auth username secret coolUser```\
+Netcat Input (after receiving): ```REPLY NOK IS Invalid secret.```\
+Output: ```Failure: Invalid secret.```
+
+Input: ```Sending a message after auth!```\
+Output:```ERR: You must authenticate and join a channel before sending messages.```
+
+###### Receiving an error
+The specification says that the client can receive an error message instead of a OK/NOK reply. In this case, the client is supossed to send a BYE message and terminate the connection and program.
+
+*Receiving an error after auth*\
+Input: ```/auth username secret coolUser```\
+Netcat Input (after receiving): ```ERR FROM Server IS DD gives you 0 points.```\
+Output: ```ERR FROM Server: DD gives you 0 points.```
+
+*Whole Netcat record*\
+```AUTH username AS coolUser USING secret```\
+```ERR FROM Server IS DD gives you 0 points.```\
+```BYE```
+
+##### While authed
+The second testing scenario happens after a sucessful authentication. The client FSM is in the open state, so authentication process will be left out here, assuming it has been successful.
+###### Sending messages
+The first test attempts to send a regular message. The expected output is nothing on the client-side, but in Netcat we want to see ```MSG FROM coolUser IS This is a test message.```.
+
+The second test attempts to send a message that is too long, the expected output is an error message.
+
+The third test attemts to send a message containing invalid characters, the expected output is an error message.
+
+*Sending a regular message*\
+Input: ```This is a test message.```\
+Netcat Output: ```MSG FROM coolUser IS This is a test message.```\
+
+*Sending a too long message*\
+Input: ```This is a test message.This is a test message.This is a test message.This is a test message....``` (the message is over 1400 characters long, ommited for simplicity)\
+Output: ```ERR: Message is too long. Maximum length is 1400 characters.```\
+
+*Sending invalid message content*\
+Input: ```IPP půlsemka byla free```\
+Output: ```ERR: Message contains non-printable characters and can contain only printable characters and space.```\
+
+###### Receiving messages
+In this test case, netcat was used to send a message. The expected output should be in the format "displayname: content", so in this case, it should be "Server: Hello from netcat."
+
+*Sending message from Netcat*\
+Netcat Input: ```MsG fRoM sErVeR iS Hello from netcat.```\
+Output: ```Server: Hello from netcat.```\
+
+###### Joining a channel
+In this test case, the user tries to join a channel called "mordor". The expected output is a success message in the format "Success: {content}"
+
+*Joining a channel*\
+Input: ```/join mordor```\
+Netcat Input: ```REPLY OK IS join success.```\
+Output: ```Success: join success.```\
+
+We can also try an invalid channel ID.
+
+*Joining a channel with invalid channel ID*\
+Input: ```/join GandalfŠedý```\
+Output: ```ERR: Invalid channel ID. Channel ID must be between 1 and 20 characters long and contain only alphanumeric characters and hyphens.```\
+
+###### Receiving invalid message
+In the specification, the grammar for valid messages is strictly specified. When receiving anything outside of this grammar, the client FSM is supossed to send an ERR message to the server and then gracefully ending the connection with a BYE message.
+The expected output to see on netcat is "ERR FROM coolUser IS Invalid message type" and a "BYE" following that.
+
+*Receiving invalid msg*\
+Netcat Input: ```I DECLARE BANKRUPTCYYYYYYYYYYYY```\
+Output: ```ERR: Unknown message type recieved```\
+Netcat Output: ```ERR FROM coolUser IS Unknown message type```
+Netcat Output: ```BYE```
+
+###### Receiving error
+When receiving an ERR message from the server, the client is expected to send a BYE message and gracefully end the connection.
+
+*Receiving error msg*\
+Netcat Input: ```ERR FROM Server IS The server got a stroke.```\
+Output: ```ERR FROM Server: The server had a stroke.```
+Netcat Output: ```BYE```
+
+###### Receiving BYE
+When receiving a BYE message from server, the client is not expected to do anything except close the connection and end.
+
+*Receiving a BYE*\
+Netcat Input: ```BYE```\
+Output: *client termination*
+
+###### Retrying auth
+When already authenticated, the user might think about trying to authenticate again. The expected output to that is an error message informing the user that he already is authenticated, in case his short-term memory does not exist.
+
+*Retrying authentication*\
+Input: ```/auth codeBreaker secret noShrtTrmMem```\
+Output: ```ERR: You are already authenticated.```
+
+###### User interrupt
+One of the ways to end the connection is with a SIGINT - signal interrupt (pressing ctrl+c). The specification requires to gracefully terminate the connection as appropriate for the selected protocol. The expected output is a BYE message from the client.
+
+*Pressing ctrl+c*\
+Input: SIGINT\
+Netcat Output: ```BYE```
+
+
 
 
 
