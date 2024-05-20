@@ -6,9 +6,14 @@ The task was to design and implement a client application, which is able to comm
 ## Table of Contents
 - [Theory](#theory)
     - [Understanding transport protocols](#understanding-transport-protocols)
-    - [TCP Protocol](#tcp-protocol)
-    - [UDP Protocol](#udp-protocol)
-    - [IPK24-CHAT Protocol](#ipk24-chat-protocol)
+        - [TCP Protocol](#tcp-protocol)
+        - [UDP Protocol](#udp-protocol)
+        - [IPK24-CHAT Protocol](#ipk24-chat-protocol)
+    - [Sockets](#sockets)
+        - [How sockets work](#how-sockets-work)
+        - [Key concepts](#key-concepts)
+        - [Practical use](#practical-use)
+        
 - [The project goals](#the-project-goals)
 - [Implementation](#implementation)
     - [Layout](#design)
@@ -102,6 +107,24 @@ Quoted values in braces or brackets are to be interpreted as constants, e.g., `{
 Based on the parameter content limitations defined above, there should never be an issue with IP fragmentation caused by exceeding the default Ethernet MTU of `1500` octets as defined by RFC 894.
 
 This is only a fraction of the full specification, which can be found at the faculty gitea [2]
+
+### Sockets
+Sockets provide a way for software to communicate between different processes, either on the same machine or over a network. Think of a socket as an endpoint in a two-way communication link. Each socket is bound to a specific port number and IP address, enabling data to travel to and from a particular service running on a device. In the context of TCP/IP networking, sockets form the bridge between the application layer and the transport layer, allowing applications to send and receive data using the Transmission Control Protocol (TCP) or the User Datagram Protocol (UDP).
+
+#### How Sockets Work
+- **TCP Sockets**: When using TCP, sockets operate by establishing a reliable connection between two endpoints. As previously stated, this connection is initiated through a three-way handshake, ensuring both sides are ready for data exchange. Once established, data can be sent across this connection as a continuous stream, with TCP handling ordering, delivery acknowledgment, and retransmission of lost packets. This makes TCP sockets ideal for applications requiring reliable data exchange, such as web servers and clients, email services, and file transfers.
+
+- **UDP Sockets**: In contrast, UDP sockets are connectionless. They send data as independent packets, called datagrams, without establishing a connection or ensuring the packets arrive in order or at all. This makes UDP sockets much faster and more efficient for cases where speed is critical and some data loss is acceptable, such as live audio or video streaming, gaming, or broadcasting messages to multiple recipients.
+
+#### Key Concepts
+- **Socket Address**: A combination of an IP address and a port number. The IP address specifies the device, while the port number specifies the particular application or service within the device.
+- **Binding**: Associating a socket with a specific address (IP and port). This is necessary for servers so that clients know where to send their messages.
+- **Listening**: In TCP, a server socket listens for incoming connections, a step not applicable for UDP sockets.
+- **Connecting**: A client initiates a connection to a server (TCP) or sends a message to a specific endpoint (UDP).
+- **Sending and Receiving Data**: Once a connection is established (TCP) or immediately (UDP), sockets can be used to exchange data.
+
+#### Practical Use
+Sockets are utilized in a wide range of applications, from simple file transfers to complex web applications and real-time communication tools, like this chat client. They abstract the complexity of network communication, providing a simpler interface for developers to build networked applications. Regardless of the underlying protocol (TCP or UDP), sockets enable the transmission of data packets across networks, making them a fundamental element in the implementation of network protocols and services. [3]
 
 ## The project goals
 The main goal of this project is to implement an application, that will serve as a chat client. This application needs to be able to communicate through TCP and UDP as well, whilst tackling the obstacles of each of those transport protocols. As we can see from the specification of the [IPK24-CHAT] protocol, that consists of several smaller parts needed to reach full functionality, for example:
@@ -207,3 +230,5 @@ TBD
 [RFC768] Postel, J. _User Datagram Protocol_ [online]. March 1997. [cited 2024-03-27]. DOI: 10.17487/RFC0768. Available at: https://datatracker.ietf.org/doc/html/rfc768
 
 [2] Dolejška, D. _IPK Project 1: Client for a chat server using `IPK24-CHAT` protocol_. 2024 [cited 2024-03-27]. Available at: https://git.fit.vutbr.cz/NESFIT/IPK-Projects-2024/src/branch/master/Project%201/README.md
+
+[3] Board Infinity, _Socket in Computer Network_ [online]. Available at: https://www.boardinfinity.com/blog/socket-in-computer-network/
