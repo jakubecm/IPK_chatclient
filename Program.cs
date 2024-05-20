@@ -1,16 +1,29 @@
+// -----------------------------------------------------------------------------
+// Project: IPK24ChatClient
+// File: Program.cs
+// Author: Milan Jakubec (xjakub41)
+// Date: 2024-03-26
+// License: GPU General Public License v3.0
+// Description: Main entrance point and argument parser for the chat client.
+// -----------------------------------------------------------------------------
 namespace IPK24ChatClient
 {
     class Program
     {
+        /// <summary>
+        /// Main entrance point for the chat client.
+        /// </summary>
+        /// <param name="args">arguments to be parsed</param>
+        /// <exception cref="ArgumentException">Gets thrown in case an invalid arg is used</exception>
         static async Task Main(string[] args)
         {
             // Default values
-            IChatCommunicator chatCommunicator;
-            string? protocol = null;
-            string? serverAddress = null;
-            int serverPort = 4567;
-            int udpTimeout = 250; // milliseconds
-            int udpRetries = 3;
+            IChatCommunicator chatCommunicator; // Interface for communication
+            string? protocol = null;            // Protocol to use (mandatory argument)
+            string? serverAddress = null;       // Server address  (mandatory argument)
+            int serverPort = 4567;              // Server port
+            int udpTimeout = 250;               // retransmission timeout (milliseconds)
+            int udpRetries = 3;                 // number of retransmissions
 
             // Parse command-line arguments
             for (int i = 0; i < args.Length; i++)
@@ -75,8 +88,15 @@ namespace IPK24ChatClient
             {
                 Console.Error.WriteLine($"Error starting chat client: {ex.Message}");
             }
+            finally
+            {
+                System.Environment.Exit(0);
+            }
         }
 
+        /// <summary>
+        /// Print help message for the chat client.
+        /// </summary>
         private static void PrintHelp()
         {
             Console.WriteLine("IPK24ChatClient Help");

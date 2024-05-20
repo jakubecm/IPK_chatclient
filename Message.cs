@@ -1,7 +1,7 @@
 using System.Text;
 // -----------------------------------------------------------------------------
 // Project: IPK24ChatClient
-// File: UdpChatCommunicator.cs
+// File: Message.cs
 // Author: Milan Jakubec (xjakub41)
 // Date: 2024-03-26
 // License: GPU General Public License v3.0
