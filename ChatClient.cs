@@ -42,12 +42,9 @@ namespace IPK24ChatClient
             Console.CancelKeyPress += async (sender, e) =>
             {
                 e.Cancel = true; // Prevent the process from terminating.
-                Console.WriteLine("Disconnecting...");
-                Message byeMsg = new Message(MessageType.Bye);
-                await chatCommunicator.SendMessageAsync(byeMsg.SerializeToTcp()); // Send a "BYE" message for a clean disconnect.
-                cts.Cancel(); // Signal for cancellation to the HandleUserInputAsync method
+                await SendBye();
             };
-            
+
             try
             {
                 await chatCommunicator.ConnectAsync(serverAddress, serverPort);
@@ -95,12 +92,10 @@ namespace IPK24ChatClient
                         case MessageType.Err:
                             Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
 
-                            if (clientState == ClientState.Auth)
+                            if (clientState == ClientState.Auth || clientState == ClientState.Open)
                             {
                                 clientState = ClientState.End;
-                                // send a "BYE" message for a clean disconnect
-                                Message byeMsg = new Message(MessageType.Bye);
-                                await chatCommunicator.SendMessageAsync(byeMsg.SerializeToTcp());
+                                await SendBye();
                             }
                             break;
                         case MessageType.Reply:
@@ -111,7 +106,9 @@ namespace IPK24ChatClient
                             clientState = ClientState.End;
                             break;
                         default:
-                            Console.Error.WriteLine($"Unknown message type: {message.Type}");
+                            Console.Error.WriteLine($"ERR: Unknown message type");
+                            clientState = ClientState.Error;
+                            await SendBye();
                             break;
                     }
                 }
@@ -176,7 +173,7 @@ namespace IPK24ChatClient
                         }
 
                         Message chatMessage = new Message(MessageType.Msg, displayName: this.displayName, content: userInput);
-                        await chatCommunicator.SendMessageAsync(chatMessage.SerializeToTcp());
+                        await chatCommunicator.SendMessageAsync(chatMessage);
                         continue;
                     }
 
@@ -205,6 +202,16 @@ namespace IPK24ChatClient
                     }
                 }
             }
+        }
+
+        public async Task SendBye()
+        {
+            Console.WriteLine("Disconnecting...");
+            Message byeMsg = new Message(MessageType.Bye);
+            await chatCommunicator.SendMessageAsync(byeMsg);
+
+            // Cancel any ongoing tasks or operations
+            cts.Cancel();
         }
 
         public void setLastCommandSent(MessageType command)

@@ -13,7 +13,8 @@ namespace IPK24ChatClient
         Bye,
         Err,
         Reply,
-        Confirm // Used for UDP confirmations
+        Confirm, // Used for UDP confirmations
+        Invalid // Used for invalid messages
     }
 
     public class Message
@@ -112,11 +113,11 @@ namespace IPK24ChatClient
                 // BYE
                 case "BYE":
                     return new Message(MessageType.Bye);
+
+                default:
+                    return new Message(MessageType.Invalid);
             }
 
-
-            throw new FormatException("Invalid TCP message format.");
         }
-
     }
 }
