@@ -47,7 +47,6 @@ namespace IPK24ChatClient
         /// It sets the client state to Auth and the last command sent to Auth, if the parameters are valid.
         /// Usage: /auth {Username} {Secret} {DisplayName}
         /// </remarks>
-        /// <exception cref="System.ArgumentException">Thrown when the parameters are invalid</exception>
         public async Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
             if (!validateParameters(parameters))

@@ -111,7 +111,7 @@ namespace IPK24ChatClient
 
             if (!confirmed)
             {
-                Console.Error.WriteLine($"ERR: Message {messageId} was not confirmed after {udpRetries} retries.");
+                Console.Error.WriteLine($"ERR: Message {messageId} of type {message.Type} was not confirmed after {udpRetries} retries.");
                 System.Environment.Exit(1);
             }
         }

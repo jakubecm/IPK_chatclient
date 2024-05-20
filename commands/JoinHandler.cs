@@ -42,7 +42,6 @@ namespace IPK24ChatClient
         /// </summary>
         /// <param name="parameters">Command parameters, expecting to contain the channelId/name to join.</param>
         /// <param name="cancellationToken">Cancel token to watch for cancellation</param>
-        /// <exception cref="System.ArgumentException">Thrown when the parameters are invalid</exception>
         public async Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
             if (chatClient.getClientState() != ClientState.Open)
