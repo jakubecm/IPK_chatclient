@@ -126,27 +126,21 @@ namespace IPK24ChatClient
                 {
                     if (this.protocol == "tcp")
                     {
-                        var rawData = await chatCommunicator.ReceiveMessageAsync();
-                        if (string.IsNullOrEmpty(rawData))
+                        Message? message = await chatCommunicator.ReceiveMessageAsync();
+                        if (message == null)
                         {
                             clientState = ClientState.End;
                             cts.Cancel(); // Signal everyone to stop
                             break; // Break the loop if the connection is closed or an error occurred
                         }
 
-                        // Parse the raw string data into a Message object
-                        var message = chatCommunicator.ParseMessage(rawData);
-                        if (message != null)
-                        {
-                            HandleMessageByType(message);
-                        }
-                        else continue;
+                        HandleMessageByType(message);
+                        continue;
 
                     }
                     else // UDP listening
                     {
-                        int udpTimeout = ((UdpChatCommunicator)chatCommunicator).getUdpTimeout();
-                        var message = await chatCommunicator.ReceiveMessageAsync(udpTimeout);
+                        var message = await chatCommunicator.ReceiveMessageAsync();
 
                         if (message != null)
                         {

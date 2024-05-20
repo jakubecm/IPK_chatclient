@@ -140,7 +140,7 @@ namespace IPK24ChatClient
             return false;
         }
 
-        public async Task<Message?> ReceiveMessageAsync(int udpTimeout)
+        public async Task<Message?> ReceiveMessageAsync()
         {
             if (udpClient == null)
             {
@@ -153,7 +153,7 @@ namespace IPK24ChatClient
                 {
                     var receivedBytes = await udpClient.ReceiveAsync();
 
-                    var message = ParseMessage(receivedBytes.Buffer);
+                    var message = Message.ParseFromUdp(receivedBytes.Buffer);
 
                     // On first reply from server, dynamic port is received
                     // Create a new endpoint with the dynamic port and send everything there from now on
@@ -196,11 +196,6 @@ namespace IPK24ChatClient
 
         }
 
-        public Message ParseMessage(byte[] data)
-        {
-            return Message.ParseFromUdp(data);
-        }
-
         /// <summary>
         /// Getter for the UDP timeout.
         /// </summary>
@@ -227,15 +222,6 @@ namespace IPK24ChatClient
         public bool CheckIfConfirmed(ushort messageId)
         {
             return confirmedSentMessageIds.Contains(messageId);
-        }
-        public async Task<string?> ReceiveMessageAsync()
-        {
-            await Task.Delay(udpTimeout);
-            return null; // Not used for UDP
-        }
-        public Message? ParseMessage(string message)
-        {
-            return null; // Not used for UDP
         }
     }
 }

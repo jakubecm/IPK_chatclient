@@ -40,31 +40,10 @@ namespace IPK24ChatClient
         Task SendMessageAsync(Message message);
 
         /// <summary>
-        /// Asynchronously receives a message from the server. Intended for TCP.
+        /// Asynchronously receives a message from the server.
         /// </summary>
         /// <returns>A task that represents the async receive operation, containing the received message in form of a string.</returns>
-        Task<string?> ReceiveMessageAsync();
-
-        /// <summary>
-        /// Overload of the previous ReceiveMessageAsync method to receive messages. Intended for UDP.
-        /// </summary>
-        /// <param name="timeoutMs">The server confirmation timeout in miliseconds</param>
-        /// <returns>A task that represents the async receive, containing the received message.</returns>
-        Task<Message?> ReceiveMessageAsync(int timeoutMs);
-
-        /// <summary>
-        /// Parses a message from a string. Intended for TCP.
-        /// </summary>
-        /// <param name="message">The message string to parse</param>
-        /// <returns>The parsed message, or Message of type invalid if the type is unsupported by the protocol.</returns>
-        Message? ParseMessage(string message);
-
-        /// <summary>
-        /// Overloaded method. Parses a message from a byte array. Intended for UDP.
-        /// </summary>
-        /// <param name="messageBytes">The byte array containing the message to parse.</param>
-        /// <returns>The parsed message, or message of type invalid if something unsupported by the protocol is received.</returns>
-        Message? ParseMessage(byte[] messageBytes); // overload for UDP
+        Task<Message?> ReceiveMessageAsync();
 
     }
 

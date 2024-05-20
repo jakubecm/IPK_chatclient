@@ -65,7 +65,7 @@ namespace IPK24ChatClient
             await stream.WriteAsync(byteMessage, 0, byteMessage.Length);
         }
 
-        public async Task<string?> ReceiveMessageAsync()
+        public async Task<Message?> ReceiveMessageAsync()
         {
             if (reader == null) throw new InvalidOperationException("Not connected to the server.");
 
@@ -98,23 +98,8 @@ namespace IPK24ChatClient
                 return null;
             }
 
-            return messageBuilder.ToString();
-        }
-
-        public Message ParseMessage(string message)
-        {
-            return Message.ParseFromTcp(message);
-        }
-
-        public Message? ParseMessage(byte[] data)
-        {
-            return null; // Not used for TCP
-        }
-
-        public async Task<Message?> ReceiveMessageAsync(int timeoutMs)
-        {
-            await Task.Delay(timeoutMs);
-            return null; // Not used for TCP
+            string rawMessage = messageBuilder.ToString();
+            return Message.ParseFromTcp(rawMessage);
         }
     }
 }
