@@ -30,6 +30,7 @@ namespace IPK24ChatClient
             Message joinMessage = new Message(MessageType.Join, channelId: parameters[0], displayName: chatClient.displayName);
             await chatCommunicator.SendMessageAsync(joinMessage);
             chatClient.setLastCommandSent(MessageType.Join);
+            chatClient.setChannelId(parameters[0]);
         }
     }
 

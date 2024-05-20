@@ -16,6 +16,7 @@ namespace IPK24ChatClient
         private ClientState clientState;
         private MessageType? lastCommandSent;
         public string? displayName;
+        public string? channelId;
         private CancellationTokenSource cts;
         private Dictionary<string, ICommandHandler> commandHandlers;
         private SemaphoreSlim commandSemaphore = new SemaphoreSlim(1, 1);
@@ -29,6 +30,7 @@ namespace IPK24ChatClient
             this.serverPort = serverPort;
             clientState = ClientState.Start;
             lastCommandSent = null;
+            channelId = null;
             cts = new CancellationTokenSource();
 
             commandHandlers = new Dictionary<string, ICommandHandler>
@@ -45,6 +47,7 @@ namespace IPK24ChatClient
             Console.CancelKeyPress += async (sender, e) =>
             {
                 e.Cancel = true; // Prevent the process from terminating.
+                signalSemaphoreToRelease();
                 await SendBye();
             };
 
@@ -52,7 +55,7 @@ namespace IPK24ChatClient
             {
                 await chatCommunicator.ConnectAsync(serverAddress, serverPort);
                 Console.WriteLine("Connected to the server. You can start AUTH.");
-                var listeningTask = ListenForMessagesAsync();
+                var listeningTask = ListenForMessagesAsync(cts.Token);
                 await HandleUserInputAsync(cts.Token);
                 await listeningTask; // Wait for listening task to complete (e.g., connection closed)
             }
@@ -62,18 +65,22 @@ namespace IPK24ChatClient
             }
             finally
             {
-                chatCommunicator.Disconnect();
+                Console.WriteLine("Shutting down...");
+                
+                if(chatCommunicator != null)
+                {
+                    chatCommunicator.Disconnect();
+                }
                 Environment.Exit(0);
             }
 
         }
 
-        private async Task ListenForMessagesAsync()
+        private async Task ListenForMessagesAsync(CancellationToken cancelToken)
         {
             try
             {
-                bool listening = true;
-                while (listening)
+                while (!cancelToken.IsCancellationRequested)
                 {
                     // Receive a complete message as a string
                     var rawData = await chatCommunicator.ReceiveMessageAsync();
@@ -81,7 +88,6 @@ namespace IPK24ChatClient
                     {
                         Console.WriteLine("No more data from server, or connection closed.");
                         clientState = ClientState.End;
-                        listening = false;
                         break; // Break the loop if the connection is closed or an error occurred
                     }
 
@@ -110,8 +116,9 @@ namespace IPK24ChatClient
                         case MessageType.Bye:
                             Console.WriteLine("Disconnected from the server.");
                             signalSemaphoreToRelease();
-                            listening = false;
                             cts.Cancel();
+                            clientState = ClientState.End;
+                            chatCommunicator.Disconnect();
                             break; 
                         default:
                             Console.Error.WriteLine($"ERR: Unknown message type");
@@ -181,7 +188,7 @@ namespace IPK24ChatClient
                             continue;
                         }
 
-                        Message chatMessage = new Message(MessageType.Msg, displayName: this.displayName, content: userInput);
+                        Message chatMessage = new Message(MessageType.Msg, channelId: channelId, displayName: this.displayName, content: userInput);
                         await chatCommunicator.SendMessageAsync(chatMessage);
                         continue;
                     }
@@ -241,11 +248,17 @@ namespace IPK24ChatClient
             await chatCommunicator.SendMessageAsync(byeMsg);
             clientState = ClientState.End;
             cts.Cancel();
+            chatCommunicator.Disconnect();
         }
 
         public void setLastCommandSent(MessageType command)
         {
             lastCommandSent = command;
+        }
+
+        public void setChannelId(string id)
+        {
+            channelId = id;
         }
 
         public void setClientState(ClientState state)
