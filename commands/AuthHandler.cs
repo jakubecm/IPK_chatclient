@@ -44,10 +44,11 @@ namespace IPK24ChatClient
 
             chatClient.displayName = parameters[2];
             Message authMessage = new Message(MessageType.Auth, username: parameters[0], secret: parameters[1], displayName: parameters[2]);
+            chatClient.setClientState(ClientState.Auth);
+            chatClient.setLastCommandSent(MessageType.Auth);
+
             await chatCommunicator.SendMessageAsync(authMessage);
 
-            chatClient.setLastCommandSent(MessageType.Auth);
-            chatClient.setClientState(ClientState.Auth);
         }
 
         public bool validateParameters(string[] parameters)
