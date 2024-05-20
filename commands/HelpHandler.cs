@@ -11,5 +11,10 @@ namespace IPK24ChatClient
             Console.WriteLine("/help - Show this help message.");
             return Task.CompletedTask;
         }
+
+        public bool validateParameters(string[] parameters)
+        {
+            return true;
+        }
     }
 }
