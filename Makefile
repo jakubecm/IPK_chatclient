@@ -25,4 +25,4 @@ clean:
 	rm xjakub41.zip
 
 pack:
-	zip xjakub41.zip commands/AuthHandler.cs commands/HelpHandler.cs commands/JoinHandler.cs commands/RenameHandler.cs CHANGELOG.md ChatClient.cs ICommandHandler.cs IChatCommunicator.cs IPP24chat_xjakub41.csproj IPP24chat_xjakub41.sln LICENSE Makefile Message.cs Program.cs README.md TcpChatCommunicator.cs UdpChatCommunicator.cs
+	zip xjakub41.zip commands/AuthHandler.cs commands/HelpHandler.cs commands/JoinHandler.cs commands/RenameHandler.cs CHANGELOG.md ChatClient.cs ICommandHandler.cs IChatCommunicator.cs IPP24chat_xjakub41.csproj IPP24chat_xjakub41.sln LICENSE Makefile Message.cs Program.cs README.md TcpChatCommunicator.cs UdpChatCommunicator.cs img/pipedtcp.png img/udppcap.png img/retransmission.png -j
