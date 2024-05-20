@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,16 +16,17 @@ namespace IPK24ChatClient
     }
     public class ChatClient
     {
-        private TcpClient? tcpClient;
-        private NetworkStream? stream;
+        private readonly IChatCommunicator chatCommunicator;
         private string serverAddress;
         private int serverPort;
         private ClientState clientState;
         private MessageType? lastCommandSent;
+        private string? displayName;
 
 
-        public ChatClient(string serverAddress, int serverPort)
+        public ChatClient(IChatCommunicator chatCommunicator, string serverAddress, int serverPort)
         {
+            this.chatCommunicator = chatCommunicator;
             this.serverAddress = serverAddress;
             this.serverPort = serverPort;
             clientState = ClientState.Start;
@@ -37,16 +39,17 @@ namespace IPK24ChatClient
                 e.Cancel = true; // Prevent the process from terminating.
                 Console.WriteLine("Disconnecting...");
                 Message byeMsg = new Message(MessageType.Bye);
-                await SendMessageAsync(byeMsg.SerializeToTcp()); // Send a "BYE" message for a clean disconnect.
-
+                await chatCommunicator.SendMessageAsync(byeMsg.SerializeToTcp()); // Send a "BYE" message for a clean disconnect.
             };
+
             try
             {
-                await ConnectToServerAsync();
-                Console.WriteLine("Connected to the server. You can start sending messages.");
+                await chatCommunicator.ConnectAsync(serverAddress, serverPort);
+                Console.WriteLine("Connected to the server. You can start AUTH.");
                 var listeningTask = ListenForMessagesAsync();
                 await HandleUserInputAsync();
                 await listeningTask; // Wait for listening task to complete (e.g., connection closed)
+                Console.WriteLine("Listen task over.");
             }
             catch (Exception ex)
             {
@@ -54,32 +57,28 @@ namespace IPK24ChatClient
             }
             finally
             {
-                Disconnect();
+                chatCommunicator.Disconnect();
+                Environment.Exit(0);
             }
-        }
-
-        private async Task ConnectToServerAsync()
-        {
-            tcpClient = new TcpClient();
-            await tcpClient.ConnectAsync(serverAddress, serverPort);
-            stream = tcpClient.GetStream();
-            clientState = ClientState.Auth;
         }
 
         private async Task ListenForMessagesAsync()
         {
-            var buffer = new byte[4096];
-            if (stream == null || tcpClient == null) throw new InvalidOperationException("The client is not connected to the server.");
-
             try
             {
-                while (tcpClient.Connected && clientState != ClientState.End)
+                while (clientState != ClientState.End)
                 {
-                    var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if (bytesRead == 0) break; // Server closed connection
+                    // Receive a complete message as a string
+                    var rawData = await chatCommunicator.ReceiveMessageAsync();
+                    if (string.IsNullOrEmpty(rawData))
+                    {
+                        Console.WriteLine("No more data from server, or connection closed.");
+                        clientState = ClientState.End;
+                        break; // Break the loop if the connection is closed or an error occurred
+                    }
 
-                    var messageData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    var message = Message.ParseFromTcp(messageData); // Deserialize the message
+                    // Parse the raw string data into a Message object
+                    var message = Message.ParseFromTcp(rawData);
 
                     // Handle the message based on its type
                     switch (message.Type)
@@ -91,45 +90,14 @@ namespace IPK24ChatClient
                             Console.Error.WriteLine($"ERR FROM {message.DisplayName}: {message.Content}");
                             break;
                         case MessageType.Reply:
-                            if (message.ReplySuccess == true)
-                            {
-                                Console.Error.WriteLine($"Success: {message.Content}");
-
-                                switch(lastCommandSent){
-                                    case MessageType.Auth:
-                                        clientState = ClientState.Open;
-                                        lastCommandSent = null;
-                                        break;
-                                    case MessageType.Join:
-                                        clientState = ClientState.Open;
-                                        lastCommandSent = null;
-                                        break;
-                                }
-                            }
-                            else
-                            {
-                                Console.Error.WriteLine($"Failure: {message.Content}");
-
-                                switch(lastCommandSent){
-                                    case MessageType.Auth:
-                                        clientState = ClientState.Auth;
-                                        lastCommandSent = null;
-                                        break;
-                                    case MessageType.Join:
-                                        clientState = ClientState.Open;
-                                        lastCommandSent = null;
-                                        break;
-                                }
-                            }
+                            HandleReplyMessage(message);
                             break;
-
                         case MessageType.Bye:
                             Console.WriteLine("Disconnected from the server.");
                             clientState = ClientState.End;
                             break;
-
                         default:
-                            // No other message types should trigger program output according to the specs
+                            Console.Error.WriteLine($"Unknown message type: {message.Type}");
                             break;
                     }
                 }
@@ -141,26 +109,58 @@ namespace IPK24ChatClient
             }
         }
 
+        private void HandleReplyMessage(Message message)
+        {
+            if (message.ReplySuccess == true)
+            {
+                Console.WriteLine($"Success: {message.Content}");
+                switch (lastCommandSent)
+                {
+                    case MessageType.Auth:
+                        clientState = ClientState.Open;
+                        break;
+                    case MessageType.Join:
+                        clientState = ClientState.Open;
+                        break;
+                }
+            }
+            else
+            {
+                Console.Error.WriteLine($"Failure: {message.Content}");
+                switch (lastCommandSent)
+                {
+                    case MessageType.Auth:
+                        clientState = ClientState.Auth;
+                        break;
+                    case MessageType.Join:
+                        clientState = ClientState.Open;
+                        break;
+                }
+            }
+            lastCommandSent = null; // Reset after handling
+        }
+
+
 
         private async Task HandleUserInputAsync()
         {
-            string? localDisplayName = null; // Keep track of local DisplayName set by /auth or /rename
-
             Console.WriteLine("You can start typing commands. Type '/help' for available commands.");
-            while (true && clientState != ClientState.End)
+
+            while (clientState != ClientState.End)
             {
                 string? userInput = Console.ReadLine();
                 if (string.IsNullOrEmpty(userInput)) continue;
 
                 if (!userInput.StartsWith("/")){
+
                     if (clientState != ClientState.Open)
                     {
                         Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
                         continue;
                     }
 
-                    Message chatMessage = new Message(MessageType.Msg, displayName: localDisplayName, content: userInput);
-                    await SendMessageAsync(chatMessage.SerializeToTcp());
+                    Message chatMessage = new Message(MessageType.Msg, displayName: this.displayName, content: userInput);
+                    await chatCommunicator.SendMessageAsync(chatMessage.SerializeToTcp());
                     continue;
                 }
 
@@ -179,9 +179,9 @@ namespace IPK24ChatClient
                             break;
                         }
 
-                        localDisplayName = inputParts[3]; // Update local display name
+                        this.displayName = inputParts[3]; // Update local display name
                         Message authMessage = new Message(MessageType.Auth, username: inputParts[1], secret: inputParts[2], displayName: inputParts[3]);
-                        await SendMessageAsync(authMessage.SerializeToTcp());
+                        await chatCommunicator.SendMessageAsync(authMessage.SerializeToTcp());
                         break;
 
                     case "/join":
@@ -192,8 +192,8 @@ namespace IPK24ChatClient
                             Console.WriteLine("Usage: /join {ChannelID}");
                             break;
                         }
-                        Message joinMessage = new Message(MessageType.Join, channelId: inputParts[1], displayName: localDisplayName);
-                        await SendMessageAsync(joinMessage.SerializeToTcp());
+                        Message joinMessage = new Message(MessageType.Join, channelId: inputParts[1], displayName: this.displayName);
+                        await chatCommunicator.SendMessageAsync(joinMessage.SerializeToTcp());
                         break;
 
                     case "/rename":
@@ -203,8 +203,8 @@ namespace IPK24ChatClient
                             Console.WriteLine("Usage: /rename {DisplayName}");
                             break;
                         }
-                        localDisplayName = inputParts[1];
-                        Console.WriteLine($"Display name changed to: {localDisplayName}");
+                        this.displayName = inputParts[1];
+                        Console.WriteLine($"Display name changed to: {this.displayName}");
                         break;
 
                     case "/help":
@@ -226,24 +226,5 @@ namespace IPK24ChatClient
             Console.WriteLine("/help - Show this help message.");
         }
 
-
-        private async Task SendMessageAsync(string message)
-        {
-            // Convert the string message to byte array and send
-            var byteMessage = Encoding.UTF8.GetBytes(message);
-
-            if (stream == null)
-            {
-                throw new InvalidOperationException("The client is not connected to the server.");
-            }
-
-            await stream.WriteAsync(byteMessage, 0, byteMessage.Length);
-        }
-
-        private void Disconnect()
-        {
-            stream?.Close();
-            tcpClient?.Close();
-        }
     }
 }

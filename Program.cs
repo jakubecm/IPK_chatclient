@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace IPK24ChatClient
 {
@@ -7,6 +8,7 @@ namespace IPK24ChatClient
         static async Task Main(string[] args)
         {
             // Default values
+            IChatCommunicator chatCommunicator;
             string protocol = "tcp";
             string serverAddress = "localhost";
             int serverPort = 4567;
@@ -44,14 +46,21 @@ namespace IPK24ChatClient
             // Validate protocol option
             if (protocol != "tcp" && protocol != "udp")
             {
-                Console.WriteLine("Error: Invalid protocol specified. Use 'tcp' or 'udp'.");
+                Console.Error.WriteLine("Error: Invalid protocol specified. Use 'tcp' or 'udp'.");
                 return;
+            }
+
+            if(protocol == "tcp"){
+                chatCommunicator = new TcpChatCommunicator();
+            }
+            else{
+                chatCommunicator = new TcpChatCommunicator();
             }
 
             // Initialize and start the chat client
             try
             {
-                ChatClient client = new ChatClient(serverAddress, serverPort);
+                ChatClient client = new ChatClient(chatCommunicator, serverAddress, serverPort);
                 await client.RunAsync();
             }
             catch (Exception ex)

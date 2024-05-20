@@ -87,37 +87,34 @@ namespace IPK24ChatClient
 
         public static Message ParseFromTcp(string data)
         {
-            var lines = data.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var line in lines)
+            var parts = data.Split(new[] { ' ' });
+            if (parts.Length < 1) throw new FormatException("Invalid TCP message format.");
+
+            switch (parts[0].ToUpper())
             {
-                var parts = line.Split(new[] { ' ' });
-                if (parts.Length < 1) continue;
+                // MSG FROM <display-name> IS <content>
+                case "MSG":
+                    var displayNameMsg = parts[2];
+                    var contentMsg = string.Join(" ", parts.Skip(4));
+                    return new Message(MessageType.Msg, displayName: displayNameMsg, content: contentMsg);
 
-                switch (parts[0].ToUpper())
-                {
-                    // MSG FROM <display-name> IS <content>
-                    case "MSG":
-                        var displayNameMsg = parts[2];
-                        var contentMsg = string.Join(" ", parts.Skip(4));
-                        return new Message(MessageType.Msg, displayName: displayNameMsg, content: contentMsg);
-                    
-                    // ERR FROM <display-name> IS <content>
-                    case "ERR":
-                        var displayNameErr = parts[2];
-                        var contentErr = string.Join(" ", parts.Skip(4));
-                        return new Message(MessageType.Err, displayName: displayNameErr, content: contentErr);
+                // ERR FROM <display-name> IS <content>
+                case "ERR":
+                    var displayNameErr = parts[2];
+                    var contentErr = string.Join(" ", parts.Skip(4));
+                    return new Message(MessageType.Err, displayName: displayNameErr, content: contentErr);
 
-                    // REPLY (OK|NOK) IS <content>
-                    case "REPLY":
-                        bool isSuccess = parts[1].Equals("OK", StringComparison.OrdinalIgnoreCase);
-                        var replyContent = string.Join(" ", parts.Skip(3));
-                        return new Message(MessageType.Reply, replySuccess: isSuccess, content: replyContent);
+                // REPLY (OK|NOK) IS <content>
+                case "REPLY":
+                    bool isSuccess = parts[1].Equals("OK", StringComparison.OrdinalIgnoreCase);
+                    var replyContent = string.Join(" ", parts.Skip(3));
+                    return new Message(MessageType.Reply, replySuccess: isSuccess, content: replyContent);
 
-                    // BYE
-                    case "BYE":
-                        return new Message(MessageType.Bye);
-                }
+                // BYE
+                case "BYE":
+                    return new Message(MessageType.Bye);
             }
+
 
             throw new FormatException("Invalid TCP message format.");
         }
