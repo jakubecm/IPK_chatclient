@@ -1,7 +1,6 @@
 // Defines the structure of various message types according to the IPK24-CHAT protocol.
 // Includes serialization and deserialization methods for converting messages to and from byte arrays or strings.
 
-using System;
 using System.Text;
 
 namespace IPK24ChatClient

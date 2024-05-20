@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-
 namespace IPK24ChatClient
 {
     class Program

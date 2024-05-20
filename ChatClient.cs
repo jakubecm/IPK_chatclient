@@ -1,9 +1,3 @@
-using System;
-using System.Collections;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace IPK24ChatClient
 {
     public enum ClientState
