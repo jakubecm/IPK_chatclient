@@ -84,7 +84,7 @@ namespace IPK24ChatClient
                     }
 
                     // Parse the raw string data into a Message object
-                    var message = Message.ParseFromTcp(rawData);
+                    var message = chatCommunicator.ParseMessage(rawData);
 
                     // Handle the message based on its type
                     switch (message.Type)
