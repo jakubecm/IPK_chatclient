@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+This file contains a brief history of development of this chat client project.
+In the current version, 3.1.0, the project should have full functionality, meaning the TCP variant and UDP variant both work fully as specified in the project requirements.
+
+All of the logic for the client is in ChatClient.cs, argument parsing and launching can be found in Program.cs.
+Handling client input commands is done by implementing a command handle interface (ICommandHandler.cs), all currently working command handlers {/auth, /rename, /join, /help} can be found in the commands folder.
+Implementation for Messages, e.g. their object, methods for serialization/deserialization can be found in Message.cs file.
+The networking aspects of this project have been implemented through IChatCommunicator.cs interface and can be found as TcpChatCommunicator.cs for the TCP variant and UdpChatCommunicator.cs for the UDP variant.
+
+As the project is at full functionality, there have been no limitations found in version 3.1.0, but as there was not enough time to create big enough test suites and any automated tests, it is entirely possible there are some.
+
+
 ## [3.1.0](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/compare/v3.0.0...v3.1.0) (2024-04-01)
 
 
