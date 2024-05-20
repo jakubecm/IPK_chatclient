@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/compare/v2.0.0...v2.1.0) (2024-03-27)
+
+
+### Features
+
+* added makefile that generates a single binary file ([30ee0ba](https://git.fit.vutbr.cz/xjakub41/ipk_proj1/commit/30ee0ba1375dacdbd4839b313fa84208365df8cf))
+
 ## 2.0.0 (2024-03-27)
 
 
