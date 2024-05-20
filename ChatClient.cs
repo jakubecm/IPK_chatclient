@@ -206,14 +206,14 @@ namespace IPK24ChatClient
 
             while (!cancelToken.IsCancellationRequested)
             {
-                if(Console.IsInputRedirected && Console.In.Peek() == -1)
+                if (Console.IsInputRedirected && Console.In.Peek() == -1)
                 {
                     clientState = ClientState.End;
                     await SendBye();
                     break;
                 }
 
-                bool inputAvailable = Console.IsInputRedirected? Console.In.Peek() != -1 : Console.KeyAvailable;
+                bool inputAvailable = Console.IsInputRedirected ? Console.In.Peek() != -1 : Console.KeyAvailable;
 
                 if (inputAvailable)
                 {
@@ -226,6 +226,20 @@ namespace IPK24ChatClient
                         {
                             Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
                             continue;
+                        }
+                        // Check if user input is max 1400 characters long and contains only printable characters with space (0x21 - 0x7E)
+                        if (userInput.Length > 1400)
+                        {
+                            Console.Error.WriteLine("Message is too long. Maximum length is 1400 characters.");
+                            continue;
+                        }
+                        foreach (char c in userInput)
+                        {
+                            if (c < 0x21 || c > 0x7E)
+                            {
+                                Console.Error.WriteLine("Message contains non-printable characters and can contain only printable characters and space.");
+                                continue;
+                            }
                         }
 
                         Message chatMessage = new Message(MessageType.Msg, channelId: channelId, displayName: this.displayName, content: userInput);
