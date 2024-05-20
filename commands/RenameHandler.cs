@@ -35,6 +35,11 @@ namespace IPK24ChatClient
         /// <param name="cancellationToken">Cancel token to watch for cancellation</param>
         public Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
+            if (chatClient.getClientState() != ClientState.Open)
+            {
+                Console.Error.WriteLine("ERR: You must be authenticated to be able to rename.");
+                return Task.CompletedTask;
+            }
 
             if (!validateParameters(parameters))
             {
