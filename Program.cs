@@ -49,21 +49,22 @@ namespace IPK24ChatClient
                         PrintHelp();
                         return;
                     default:
-                        throw new ArgumentException($"Invalid argument: {args[i]}");
+                        Console.Error.WriteLine($"ERR: Invalid argument '{args[i]}'. Use -h for help.");
+                        return;
                 }
             }
 
             // Validate required arguments
             if (protocol == null || serverAddress == null)
             {
-                Console.Error.WriteLine("Error: Missing required arguments. Usage: IPK24ChatClient -t [tcp/udp] -s [server address]");
+                Console.Error.WriteLine("ERR: Missing required arguments. Usage: IPK24ChatClient -t [tcp/udp] -s [server address]");
                 return;
             }
 
             // Validate protocol option
             if (protocol != "tcp" && protocol != "udp")
             {
-                Console.Error.WriteLine("Error: Invalid protocol specified. Use 'tcp' or 'udp'.");
+                Console.Error.WriteLine("ERR: Invalid protocol specified. Use 'tcp' or 'udp'.");
                 return;
             }
 
@@ -86,7 +87,7 @@ namespace IPK24ChatClient
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Error starting chat client: {ex.Message}");
+                Console.Error.WriteLine($"ERR: Unable to start the chat client: {ex.Message}");
             }
             finally
             {

@@ -304,13 +304,13 @@ namespace IPK24ChatClient
                     {
                         if (clientState != ClientState.Open)
                         {
-                            Console.Error.WriteLine("You must authenticate and join a channel before sending messages.");
+                            Console.Error.WriteLine("ERR: You must authenticate and join a channel before sending messages.");
                             continue;
                         }
                         // Check if user input is max 1400 characters long and contains only printable characters with space (0x20 - 0x7E)
                         if (userInput.Length > 1400)
                         {
-                            Console.Error.WriteLine("Message is too long. Maximum length is 1400 characters.");
+                            Console.Error.WriteLine("ERR: Message is too long. Maximum length is 1400 characters.");
                             continue;
                         }
                         foreach (char c in userInput)
@@ -318,7 +318,7 @@ namespace IPK24ChatClient
                             // 0x20 = space, 0x7E = ~
                             if (c < 0x20 || c > 0x7E)
                             {
-                                Console.Error.WriteLine("Message contains non-printable characters and can contain only printable characters and space.");
+                                Console.Error.WriteLine("ERR: Message contains non-printable characters and can contain only printable characters and space.");
                                 continue;
                             }
                         }
@@ -383,7 +383,6 @@ namespace IPK24ChatClient
         /// </summary>
         public async Task SendBye()
         {
-            Console.WriteLine("Disconnecting...");
             Message byeMsg = new Message(MessageType.Bye);
             await chatCommunicator.SendMessageAsync(byeMsg);
             clientState = ClientState.End;
