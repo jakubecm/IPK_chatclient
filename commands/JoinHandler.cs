@@ -19,6 +19,12 @@ namespace IPK24ChatClient
                 return;
             }
 
+            if (chatClient.getClientState() != ClientState.Open)
+            {
+                Console.Error.WriteLine("You must authenticate before joining a channel.");
+                return;
+            }
+
             Message joinMessage = new Message(MessageType.Join, channelId: parameters[0], displayName: chatClient.displayName);
             await chatCommunicator.SendMessageAsync(joinMessage.SerializeToTcp());
             chatClient.setLastCommandSent(MessageType.Join);

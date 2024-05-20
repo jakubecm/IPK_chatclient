@@ -4,15 +4,10 @@ namespace IPK24ChatClient
     {
         public Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
-            Console.WriteLine("Usage: IPK24ChatClient [options]");
-            Console.WriteLine("Options:");
-            Console.WriteLine("  -t <protocol>  Protocol to use (tcp or udp)");
-            Console.WriteLine("  -s <address>   Server address");
-            Console.WriteLine("  -p <port>      Server port");
-            Console.WriteLine("  -d <timeout>   UDP timeout in milliseconds");
-            Console.WriteLine("  -r <retries>   Number of UDP retries");
-            Console.WriteLine("  -h             Display this help message");
-
+            Console.WriteLine("/auth {Username} {Secret} {DisplayName} - Authenticate with the server.");
+            Console.WriteLine("/join {ChannelID} - Join a chat channel.");
+            Console.WriteLine("/rename {DisplayName} - Change your display name locally.");
+            Console.WriteLine("/help - Show this help message.");
             return Task.CompletedTask;
         }
     }

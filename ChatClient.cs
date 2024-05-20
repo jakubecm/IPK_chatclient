@@ -47,7 +47,7 @@ namespace IPK24ChatClient
                 await chatCommunicator.SendMessageAsync(byeMsg.SerializeToTcp()); // Send a "BYE" message for a clean disconnect.
                 cts.Cancel(); // Signal for cancellation to the HandleUserInputAsync method
             };
-
+            
             try
             {
                 await chatCommunicator.ConnectAsync(serverAddress, serverPort);
@@ -58,13 +58,14 @@ namespace IPK24ChatClient
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex.Message}");
+                Console.Error.WriteLine($"Error: {ex.Message}");
             }
             finally
             {
                 chatCommunicator.Disconnect();
                 Environment.Exit(0);
             }
+
         }
 
         private async Task ListenForMessagesAsync()
@@ -209,6 +210,11 @@ namespace IPK24ChatClient
         public void setLastCommandSent(MessageType command)
         {
             lastCommandSent = command;
+        }
+
+        public ClientState getClientState()
+        {
+            return clientState;
         }
 
     }
