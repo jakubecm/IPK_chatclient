@@ -66,9 +66,13 @@ namespace IPK24ChatClient
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred while receiving the message: {ex.Message}");
+                Console.Error.WriteLine($"An error occurred while receiving the message: {ex.Message}");
                 return null;
             }
 

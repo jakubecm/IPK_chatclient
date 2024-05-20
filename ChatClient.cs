@@ -197,7 +197,16 @@ namespace IPK24ChatClient
 
             while (!cancelToken.IsCancellationRequested)
             {
-                if (Console.KeyAvailable)
+                if(Console.IsInputRedirected && Console.In.Peek() == -1)
+                {
+                    clientState = ClientState.End;
+                    await SendBye();
+                    break;
+                }
+
+                bool inputAvailable = Console.IsInputRedirected? Console.In.Peek() != -1 : Console.KeyAvailable;
+
+                if (inputAvailable)
                 {
                     string? userInput = Console.ReadLine();
                     if (string.IsNullOrEmpty(userInput)) continue;
