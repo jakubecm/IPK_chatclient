@@ -24,6 +24,7 @@ namespace IPK24ChatClient
             if (chatClient.getClientState() != ClientState.Open)
             {
                 Console.Error.WriteLine("You must authenticate before joining a channel.");
+                chatClient.commandCompletionSource?.SetResult(true);
                 return;
             }
 
