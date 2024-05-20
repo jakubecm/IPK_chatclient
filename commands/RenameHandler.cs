@@ -59,7 +59,7 @@ namespace IPK24ChatClient
         {
             if (parameters.Length != 1)
             {
-                Console.Error.WriteLine("Usage: /rename {DisplayName}");
+                Console.Error.WriteLine("ERR: Usage: /rename {DisplayName}");
                 return false;
             }
 

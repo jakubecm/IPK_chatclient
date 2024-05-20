@@ -38,8 +38,7 @@ namespace IPK24ChatClient
         {
             if (parameters.Length > 0)
             {
-                Console.Error.WriteLine("Invalid parameters.");
-                Console.Error.WriteLine("Usage: /help");
+                Console.Error.WriteLine("ERR: Help does not take parameters.");
                 return false;
             }
             return true;

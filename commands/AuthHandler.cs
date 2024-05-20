@@ -60,7 +60,7 @@ namespace IPK24ChatClient
                 chatClient.getClientState() == ClientState.Error ||
                 chatClient.getClientState() == ClientState.End)
             {
-                Console.Error.WriteLine("You are already authenticated.");
+                Console.Error.WriteLine("ERR: You are already authenticated.");
                 chatClient.signalSemaphoreToRelease();
                 return;
             }
@@ -83,7 +83,7 @@ namespace IPK24ChatClient
         {
             if (parameters.Length != 3 || parameters.Any(string.IsNullOrWhiteSpace))
             {
-                Console.Error.WriteLine("Invalid number of parameters.");
+                Console.Error.WriteLine("ERR: Invalid number of parameters.");
                 return false;
             }
 
@@ -96,13 +96,13 @@ namespace IPK24ChatClient
 
             if (!usernameRegex.IsMatch(username) || !secretRegex.IsMatch(secret))
             {
-                Console.Error.WriteLine("Invalid username or secret.");
+                Console.Error.WriteLine("ERR: Invalid username or secret.");
                 return false;
             }
 
             if (displayName.Length <= 0 || displayName.Length > 20)
             {
-                Console.Error.WriteLine("Invalid display name.");
+                Console.Error.WriteLine("ERR: Invalid display name.");
                 return false;
             }
 
@@ -112,7 +112,7 @@ namespace IPK24ChatClient
                 // 0x21 = '!', 0x7E = '~'
                 if (c < '!' || c > '~')
                 {
-                    Console.Error.WriteLine("Invalid display name.");
+                    Console.Error.WriteLine("ERR: Invalid display name.");
                     return false;
                 }
             }

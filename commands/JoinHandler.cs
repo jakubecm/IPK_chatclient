@@ -47,7 +47,7 @@ namespace IPK24ChatClient
         {
             if (chatClient.getClientState() != ClientState.Open)
             {
-                Console.Error.WriteLine("You must authenticate before joining a channel.");
+                Console.Error.WriteLine("ERR: You must authenticate before joining a channel.");
                 chatClient.signalSemaphoreToRelease();
                 return;
             }
@@ -77,7 +77,7 @@ namespace IPK24ChatClient
         {
             if (parameters.Length != 1)
             {
-                Console.Error.WriteLine("Invalid number of parameters.");
+                Console.Error.WriteLine("ERR: Invalid number of parameters.");
                 return false;
             }
             // regex to match alphanumeric characters and hyphens, 1-20 characters long
@@ -85,7 +85,7 @@ namespace IPK24ChatClient
 
             if(!regex.IsMatch(parameters[0]))
             {
-                Console.Error.WriteLine("Invalid channel ID. Channel ID must be between 1 and 20 characters long and contain only alphanumeric characters and hyphens.");
+                Console.Error.WriteLine("ERR: Invalid channel ID. Channel ID must be between 1 and 20 characters long and contain only alphanumeric characters and hyphens.");
                 return false;
             }
 
