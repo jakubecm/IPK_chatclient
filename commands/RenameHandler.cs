@@ -3,6 +3,7 @@ namespace IPK24ChatClient
     public class RenameHandler : ICommandHandler
     {
         private readonly ChatClient chatClient;
+        public bool RequiresServerConfirmation => false;
         public RenameHandler(ChatClient chatClient)
         {
             this.chatClient = chatClient;

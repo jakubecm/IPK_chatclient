@@ -2,6 +2,7 @@ namespace IPK24ChatClient
 {
     public class HelpHandler : ICommandHandler
     {
+        public bool RequiresServerConfirmation => false;
         public Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
             Console.WriteLine("/auth {Username} {Secret} {DisplayName} - Authenticate with the server.");

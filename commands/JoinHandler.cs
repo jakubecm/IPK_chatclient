@@ -4,6 +4,7 @@ namespace IPK24ChatClient
     {
         private readonly IChatCommunicator chatCommunicator;
         private readonly ChatClient chatClient;
+        public bool RequiresServerConfirmation => true;
 
         public JoinHandler(IChatCommunicator chatCommunicator, ChatClient chatClient)
         {
@@ -16,6 +17,7 @@ namespace IPK24ChatClient
             if (parameters.Length != 1)
             {
                 Console.WriteLine("Usage: /join {ChannelName}");
+                chatClient.commandCompletionSource?.SetResult(true);
                 return;
             }
 

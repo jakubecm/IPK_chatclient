@@ -18,6 +18,8 @@ namespace IPK24ChatClient
         public string? displayName;
         private CancellationTokenSource cts;
         private Dictionary<string, ICommandHandler> commandHandlers;
+        private SemaphoreSlim commandSemaphore = new SemaphoreSlim(1, 1);
+        public TaskCompletionSource<bool>? commandCompletionSource;
 
 
         public ChatClient(IChatCommunicator chatCommunicator, string serverAddress, int serverPort)
@@ -26,6 +28,7 @@ namespace IPK24ChatClient
             this.serverAddress = serverAddress;
             this.serverPort = serverPort;
             clientState = ClientState.Start;
+            lastCommandSent = null;
             cts = new CancellationTokenSource();
 
             commandHandlers = new Dictionary<string, ICommandHandler>
@@ -69,7 +72,8 @@ namespace IPK24ChatClient
         {
             try
             {
-                while (clientState != ClientState.End)
+                bool listening = true;
+                while (listening)
                 {
                     // Receive a complete message as a string
                     var rawData = await chatCommunicator.ReceiveMessageAsync();
@@ -77,6 +81,7 @@ namespace IPK24ChatClient
                     {
                         Console.WriteLine("No more data from server, or connection closed.");
                         clientState = ClientState.End;
+                        listening = false;
                         break; // Break the loop if the connection is closed or an error occurred
                     }
 
@@ -94,19 +99,23 @@ namespace IPK24ChatClient
 
                             if (clientState == ClientState.Auth || clientState == ClientState.Open)
                             {
-                                clientState = ClientState.End;
+                                signalSemaphoreToRelease();
                                 await SendBye();
                             }
                             break;
                         case MessageType.Reply:
                             HandleReplyMessage(message);
+                            signalSemaphoreToRelease();
                             break;
                         case MessageType.Bye:
                             Console.WriteLine("Disconnected from the server.");
-                            clientState = ClientState.End;
-                            break;
+                            signalSemaphoreToRelease();
+                            listening = false;
+                            cts.Cancel();
+                            break; 
                         default:
                             Console.Error.WriteLine($"ERR: Unknown message type");
+                            signalSemaphoreToRelease();
                             clientState = ClientState.Error;
                             await SendBye();
                             break;
@@ -157,7 +166,7 @@ namespace IPK24ChatClient
         {
             Console.WriteLine("You can start typing commands. Type '/help' for available commands.");
 
-            while (clientState != ClientState.End && !cancelToken.IsCancellationRequested)
+            while (!cancelToken.IsCancellationRequested)
             {
                 if (Console.KeyAvailable)
                 {
@@ -183,7 +192,28 @@ namespace IPK24ChatClient
 
                     if (commandHandlers.TryGetValue(command, out var handler))
                     {
-                        await handler.ExecuteCommandAsync(inputParts[1..], cancelToken);
+                        if (handler.RequiresServerConfirmation)
+                        {
+                            await commandSemaphore.WaitAsync(cancelToken);
+                            try
+                            {
+                                commandCompletionSource = new TaskCompletionSource<bool>();
+                                await handler.ExecuteCommandAsync(inputParts[1..], cancelToken);
+                                await commandCompletionSource.Task;
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                Console.Error.WriteLine("Command execution was canceled.");
+                            }
+                            finally
+                            {
+                                commandSemaphore.Release();
+                            }
+                        }
+                        else
+                        {
+                            await handler.ExecuteCommandAsync(inputParts[1..], cancelToken);
+                        }
                     }
                     else
                     {
@@ -209,8 +239,7 @@ namespace IPK24ChatClient
             Console.WriteLine("Disconnecting...");
             Message byeMsg = new Message(MessageType.Bye);
             await chatCommunicator.SendMessageAsync(byeMsg);
-
-            // Cancel any ongoing tasks or operations
+            clientState = ClientState.End;
             cts.Cancel();
         }
 
@@ -219,9 +248,23 @@ namespace IPK24ChatClient
             lastCommandSent = command;
         }
 
+        public void setClientState(ClientState state)
+        {
+            clientState = state;
+        }
+
         public ClientState getClientState()
         {
             return clientState;
+        }
+
+        public void signalSemaphoreToRelease()
+        {
+            // If something is waiting for command completion source, unlock it
+            if (commandCompletionSource?.Task.IsCompleted == false)
+            {
+                commandCompletionSource?.SetResult(true);
+            }
         }
 
     }

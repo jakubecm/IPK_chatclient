@@ -5,6 +5,7 @@ namespace IPK24ChatClient
     {
         private readonly IChatCommunicator chatCommunicator;
         private readonly ChatClient chatClient;
+        public bool RequiresServerConfirmation => true;
 
         public AuthHandler(IChatCommunicator chatCommunicator, ChatClient chatClient)
         {
@@ -14,9 +15,11 @@ namespace IPK24ChatClient
 
         public async Task ExecuteCommandAsync(string[] parameters, CancellationToken cancellationToken)
         {
-            if (parameters.Length != 3)
+            if (parameters.Length != 3 || parameters.Any(string.IsNullOrWhiteSpace))
             {
                 Console.WriteLine("Usage: /auth {Username} {Secret} {DisplayName}");
+                Console.WriteLine("Note: Display name cannot be empty.");
+                chatClient.commandCompletionSource?.SetResult(true);
                 return;
             }
             if (chatClient.getClientState() == ClientState.Open ||
@@ -32,6 +35,7 @@ namespace IPK24ChatClient
             await chatCommunicator.SendMessageAsync(authMessage);
 
             chatClient.setLastCommandSent(MessageType.Auth);
+            chatClient.setClientState(ClientState.Auth);
         }
     }
 
