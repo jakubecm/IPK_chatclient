@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -11,8 +12,17 @@ namespace IPK24ChatClient
 
         public async Task ConnectAsync(string serverAddress, int serverPort)
         {
+            // limit to only ipv4
             tcpClient = new TcpClient();
-            await tcpClient.ConnectAsync(serverAddress, serverPort);
+            var parsedAddress = Dns.GetHostAddresses(serverAddress);
+            IPAddress? ipv4addr = parsedAddress.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+
+            if (ipv4addr == null)
+            {
+                throw new ArgumentException("Server address is not a valid IPv4 address.");
+            }
+
+            await tcpClient.ConnectAsync(ipv4addr, serverPort);
             stream = tcpClient.GetStream();
             reader = new StreamReader(stream, Encoding.UTF8);
         }
@@ -28,7 +38,7 @@ namespace IPK24ChatClient
         {
             // Convert the string message to byte array and send
             string serializedMessage = message.SerializeToTcp();
-            var byteMessage = Encoding.UTF8.GetBytes(serializedMessage);
+            var byteMessage = Encoding.ASCII.GetBytes(serializedMessage);
 
             if (stream == null)
             {
@@ -77,6 +87,17 @@ namespace IPK24ChatClient
         public Message ParseMessage(string message)
         {
             return Message.ParseFromTcp(message);
+        }
+
+        public Message? ParseMessage(byte[] data)
+        {
+            return null; // Not used for TCP
+        }
+
+        public async Task<Message?> ReceiveMessageAsync(int timeoutMs)
+        {
+            await Task.Delay(timeoutMs);
+            return null; // Not used for TCP
         }
     }
 }
