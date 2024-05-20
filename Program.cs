@@ -60,18 +60,20 @@ namespace IPK24ChatClient
             }
             else
             {
-                chatCommunicator = new TcpChatCommunicator();
+                chatCommunicator = new UdpChatCommunicator();
+                ((UdpChatCommunicator)chatCommunicator).udpTimeout = udpTimeout;
+                ((UdpChatCommunicator)chatCommunicator).udpRetries = udpRetries;
             }
 
             // Initialize and start the chat client
             try
             {
-                ChatClient client = new ChatClient(chatCommunicator, serverAddress, serverPort);
+                ChatClient client = new ChatClient(chatCommunicator, serverAddress, serverPort, protocol);
                 await client.RunAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error starting chat client: {ex.Message}");
+                Console.Error.WriteLine($"Error starting chat client: {ex.Message}");
             }
         }
 
