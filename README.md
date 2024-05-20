@@ -404,6 +404,9 @@ Trying to send message in a new channel.
 Ending the file, disconnect expected.
 ```
 To showcase functionality, a wireshark screenshot shall be showcased.
+![wiresharkpcap](./img/pipedtcp.png)
+
+From this screenshot, we can see the communication is correct.
 
 
 
