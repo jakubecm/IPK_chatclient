@@ -1,10 +1,20 @@
-// Defines the structure of various message types according to the IPK24-CHAT protocol.
-// Includes serialization and deserialization methods for converting messages to and from byte arrays or strings.
-
 using System.Text;
+// -----------------------------------------------------------------------------
+// Project: IPK24ChatClient
+// File: UdpChatCommunicator.cs
+// Author: Milan Jakubec (xjakub41)
+// Date: 2024-03-26
+// License: GPU General Public License v3.0
+// Description: This is implementation of Message class and its methods.
+//              Defines the structure of various message types according to the IPK24-CHAT protocol.
+//              Includes serialization and deserialization methods for converting messages to and from byte arrays or strings.
+// -----------------------------------------------------------------------------
 
 namespace IPK24ChatClient
 {
+    /// <summary>
+    /// Enum representing the type of a message.
+    /// </summary>
     public enum MessageType
     {
         Auth,
@@ -17,18 +27,38 @@ namespace IPK24ChatClient
         Invalid // Used for invalid messages
     }
 
+    /// <summary>
+    /// Class representing a message according to the IPK24-CHAT protocol.
+    /// </summary>
     public class Message
     {
+        /// <value>The type of the message.</value>
         public MessageType Type { get; }
-        public ushort? MessageId { get; set;} // Relevant for UDP
-        public string? Username { get; }
-        public string? DisplayName { get; }
-        public string? ChannelId { get; }
-        public string? Secret { get; }
-        public string? Content { get; }
-        public bool? ReplySuccess { get; } // Relevant for Reply messages
 
-        // Constructor for messages, including MessageId which is essential for UDP communication
+        /// <value>The message ID. Relevant for UDP communication.</value>
+        public ushort? MessageId { get; set;}
+
+        /// <value>The username of the sender. Relevant for Auth messages.</value>
+        public string? Username { get; }
+
+        /// <value>The display name of the sender. Relevant for Auth, Join, Msg, Err messages.</value>
+        public string? DisplayName { get; }
+
+        /// <value>The channel ID. Relevant for Join messages.</value>
+        public string? ChannelId { get; }
+
+        /// <value>The secret. Relevant for Auth messages.</value>
+        public string? Secret { get; }
+
+        /// <value>The content of the message. Relevant for Msg, Err messages.</value>
+        public string? Content { get; }
+
+        /// <value>Flag indicating if the reply to server request is positive or negative. Relevant for Reply messages.</value>
+        public bool? ReplySuccess { get; }
+
+        /// <summary>
+        /// Constructor for a message.
+        /// </summary>
         public Message(MessageType type, ushort? messageId = null, string? username = null,
                        string? displayName = null, string? channelId = null, string? secret = null,
                        string? content = null, bool? replySuccess = null)
@@ -43,6 +73,11 @@ namespace IPK24ChatClient
             ReplySuccess = replySuccess;
         }
 
+        /// <summary>
+        /// Serialize the message to a string for TCP communication according to protocol.
+        /// </summary>
+        /// <returns>string in the format ready to be sent over TCP</returns>
+        /// <exception cref="ArgumentException">In case the user tries to serialize invalid message type</exception>
         public string SerializeToTcp()
         {
             var sb = new StringBuilder();
@@ -71,6 +106,12 @@ namespace IPK24ChatClient
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Parses a message from a string received over TCP according to protocol.
+        /// </summary>
+        /// <param name="data">The raw message string</param>
+        /// <returns>Message object filled with received information</returns>
+        /// <exception cref="FormatException">Happens if the received string has incorrect format</exception>
         public static Message ParseFromTcp(string data)
         {
             var parts = data.Split(new[] { ' ' });
@@ -121,6 +162,10 @@ namespace IPK24ChatClient
 
         }
 
+        /// <summary>
+        /// Serialize the message to a byte array for UDP communication according to protocol.
+        /// </summary>
+        /// <returns>Byte array filled with message info ready to be sent over UDP</returns>
         public byte[] SerializeToUdp()
         {
             var ms = new MemoryStream();
@@ -158,6 +203,11 @@ namespace IPK24ChatClient
             return ms.ToArray();
         }
 
+        /// <summary>
+        /// Parses a message from a byte array received over UDP according to protocol.
+        /// </summary>
+        /// <param name="data">Byte array of message data</param>
+        /// <returns>Message object carrying parsed information from the byte array</returns>
         public static Message ParseFromUdp(byte[] data)
         {
             var ms = new MemoryStream(data);
@@ -186,12 +236,17 @@ namespace IPK24ChatClient
                     return new Message(type, messageId);
                 case MessageType.Bye:
                     return new Message(type, messageId);
+                default:
+                    return new Message(MessageType.Invalid);
             }
-
-            return new Message(MessageType.Invalid);
         }
 
-        // Helper method to read strings terminated by a null byte
+        /// <summary>
+        /// Reads a given number of null-terminated strings from the binary reader.
+        /// </summary>
+        /// <param name="reader">BinaryReader instance</param>
+        /// <param name="count">number of string to be read</param>
+        /// <returns></returns>
         private static string[] ReadNullTerminatedStrings(BinaryReader reader, int count)
         {
             var results = new List<string>();
@@ -202,6 +257,11 @@ namespace IPK24ChatClient
             return results.ToArray();
         }
 
+        /// <summary>
+        /// Reads a null-terminated string from the binary reader.
+        /// </summary>
+        /// <param name="reader">BinaryReader instance</param>
+        /// <returns>a string read from the reader</returns>
         private static string ReadNullTerminatedString(BinaryReader reader)
         {
             var bytes = new List<byte>();
@@ -213,6 +273,11 @@ namespace IPK24ChatClient
             return Encoding.ASCII.GetString(bytes.ToArray());
         }
 
+        /// <summary>
+        /// Converts MessageType enum to byte value.
+        /// </summary>
+        /// <param name="type">Message type to be converted</param>
+        /// <returns>a byte of message type</returns>
         public static byte GetByteValFromMessageType(MessageType type)
         {
             switch (type)
@@ -236,6 +301,11 @@ namespace IPK24ChatClient
             }
         }
 
+        /// <summary>
+        /// Converts byte value to MessageType enum.
+        /// </summary>
+        /// <param name="type">byte to be converted</param>
+        /// <returns>MessageType extracted form the byte value</returns>
         public static MessageType GetMessageTypeFromByte(byte type)
         {
             switch (type)
@@ -259,6 +329,4 @@ namespace IPK24ChatClient
             }
         }
     }
-
-
 }
