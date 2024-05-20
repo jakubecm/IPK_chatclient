@@ -318,15 +318,18 @@ namespace IPK24ChatClient
                             Console.Error.WriteLine("ERR: Message is too long. Maximum length is 1400 characters.");
                             continue;
                         }
+                        bool containsNonPrintable = false;
                         foreach (char c in userInput)
                         {
                             // 0x20 = space, 0x7E = ~
                             if (c < 0x20 || c > 0x7E)
                             {
                                 Console.Error.WriteLine("ERR: Message contains non-printable characters and can contain only printable characters and space.");
-                                continue;
+                                containsNonPrintable = true;
+                                break;
                             }
                         }
+                        if (containsNonPrintable) continue;
 
                         Message chatMessage = new Message(MessageType.Msg, channelId: channelId, displayName: this.displayName, content: userInput);
                         await chatCommunicator.SendMessageAsync(chatMessage);
