@@ -94,18 +94,30 @@ namespace IPK24ChatClient
             {
                 // MSG FROM <display-name> IS <content>
                 case "MSG":
+                    if (parts[1] != "FROM" || parts[3] != "IS")
+                    {
+                        return new Message(MessageType.Invalid);
+                    }
                     var displayNameMsg = parts[2];
                     var contentMsg = string.Join(" ", parts.Skip(4));
                     return new Message(MessageType.Msg, displayName: displayNameMsg, content: contentMsg);
 
                 // ERR FROM <display-name> IS <content>
                 case "ERR":
+                    if(parts[1] != "FROM" || parts[3] != "IS"){
+                        return new Message(MessageType.Invalid);
+                    }
                     var displayNameErr = parts[2];
                     var contentErr = string.Join(" ", parts.Skip(4));
                     return new Message(MessageType.Err, displayName: displayNameErr, content: contentErr);
 
                 // REPLY (OK|NOK) IS <content>
                 case "REPLY":
+                    
+                    if (parts[1] != "OK" && parts[1] != "NOK" || parts[2] !="IS")
+                    {
+                        return new Message(MessageType.Invalid);
+                    }
                     bool isSuccess = parts[1].Equals("OK", StringComparison.OrdinalIgnoreCase);
                     var replyContent = string.Join(" ", parts.Skip(3));
                     return new Message(MessageType.Reply, replySuccess: isSuccess, content: replyContent);
